@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SQLiteExplorer.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:grid="clr-namespace:AvaloniaVirtualDataGrid.Controls;assembly=AvaloniaVirtualDataGrid"
+        xmlns:views="clr-namespace:SQLiteExplorer.Views"
+        xmlns:AvaloniaEdit="using:AvaloniaEdit"
+        xmlns:i="using:Avalonia.Xaml.Interactivity"
+        xmlns:behaviors="using:SQLiteExplorer.Behaviors"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="SQLiteExplorer.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding Title}"
+        Width="1200" Height="800">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*">
+        <Menu Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New Database..." Command="{Binding NewDatabaseCommand}"/>
+                <MenuItem Header="_Open Database..." Command="{Binding OpenDatabaseCommand}"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Refresh Tree" Command="{Binding RefreshDatabaseTreeCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Query">
+                <MenuItem Header="_New Query Tab" Command="{Binding AddNewQueryTabCommand}"/>
+            </MenuItem>
+        </Menu>
+        
+        <Grid Grid.Row="1" ColumnDefinitions="250,6,*">
+            <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="Database Explorer" Margin="10,8" FontWeight="SemiBold"/>
+                    <TreeView Grid.Row="1" ItemsSource="{Binding DatabaseNodes}" Margin="5,0">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Name}"/>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </Border>
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8" Spacing="8">
+                    <Button Command="{Binding AddNewQueryTabCommand}" ToolTip.Tip="New Query (Ctrl+T)">
+                        <TextBlock Text="+" FontSize="16" FontWeight="Bold" Margin="4"/>
+                    </Button>
+                    <Button Command="{Binding SelectedTab.ExecuteQueryCommand}" 
+                            IsEnabled="{Binding !SelectedTab.IsLoading}"
+                            ToolTip.Tip="Execute Query (Ctrl+Enter)">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="▶" VerticalAlignment="Center"/>
+                            <TextBlock Text="Execute" VerticalAlignment="Center" Margin="4,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                
+                <TabControl Grid.Row="1"
+                            ItemsSource="{Binding QueryTabs}" 
+                            SelectedItem="{Binding SelectedTab}" Padding="0">
+                    <TabControl.ItemTemplate>
+                        <DataTemplate DataType="vm:QueryTabViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding Title}"/>
+                                <Button Command="{Binding $parent[TabControl].((vm:MainWindowViewModel)DataContext).CloseQueryTabCommand}"
+                                        CommandParameter="{Binding}"
+                                        Width="16" Height="16" Padding="0"
+                                        Background="Transparent" BorderThickness="0">
+                                    <TextBlock Text="×" FontSize="12" Foreground="Gray"/>
+                                </Button>
+                            </StackPanel>
+                        </DataTemplate>
+                    </TabControl.ItemTemplate>
+                        <TabControl.ContentTemplate>
+                            <DataTemplate DataType="vm:QueryTabViewModel">
+                                <Grid RowDefinitions="*,Auto,*">
+                                    <Border Grid.Row="0" Margin="8,8,8,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" Background="White">
+                                        <AvaloniaEdit:TextEditor ShowLineNumbers="True"
+                                                                 FontFamily="Consolas, Courier New"
+                                                                 FontSize="14"
+                                                                 SyntaxHighlighting="SQL">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:DocumentTextBindingBehavior Text="{ReflectionBinding SqlText, Mode=TwoWay}"/>
+                                            </i:Interaction.Behaviors>
+                                        </AvaloniaEdit:TextEditor>
+                                    </Border>
+                                    <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="8,0"/>
+                                    <Grid Grid.Row="2" RowDefinitions="Auto,*" Margin="8,0,8,8">
+                                        <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
+                                            <TextBlock Text="{Binding ResultStatus}" Foreground="Green"/>
+                                        </Border>
+                                        <views:QueryResultsView Grid.Row="1" DataContext="{ReflectionBinding}"/>
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </TabControl.ContentTemplate>
+                </TabControl>
+                
+                <Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding IsConnected, Converter={x:Static vm:MainWindowViewModel.ConnectedConverter}}" 
+                                   Foreground="Green" Margin="8,0,0,0"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
