@@ -4,6 +4,8 @@ A desktop tool for inspecting and creating SQLite databases, inspired by SQL Ser
 
 *Powered by AI SLOPTRONIC (TM) technology - because writing SQL tools by hand is so 2019.*
 
+**Version 1.0.0**
+
 ![Screenshot](screenshot.png)
 
 ## Features

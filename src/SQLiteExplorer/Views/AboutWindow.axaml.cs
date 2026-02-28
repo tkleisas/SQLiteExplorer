@@ -21,6 +21,7 @@ public partial class AboutWindow : Window
     private void LoadVersionInfo()
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+        var commitHash = ThisAssembly.Git.Commit;
         var runtime = RuntimeInformation.FrameworkDescription;
         var os = RuntimeInformation.OSDescription;
         var arch = RuntimeInformation.ProcessArchitecture.ToString();
@@ -31,7 +32,7 @@ public partial class AboutWindow : Window
         var runtimeText = this.FindControl<TextBlock>("RuntimeText");
 
         if (versionText != null)
-            versionText.Text = $"Version {version}";
+            versionText.Text = $"Version {version} ({commitHash})";
 
         if (platformText != null)
             platformText.Text = platform;
