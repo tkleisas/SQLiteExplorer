@@ -94,7 +94,11 @@ public class SqlCompletionBehavior
             _completionWindow = null;
 
             var textArea = _textEditor.TextArea;
-            var completion = _provider.GetCompletions(textArea.Document.GetText(0, textArea.Caret.Offset));
+            var caretOffset = textArea.Caret.Offset;
+            
+            var wordStart = FindWordStart(textArea.Document.GetText(0, caretOffset));
+            
+            var completion = _provider.GetCompletions(textArea.Document.GetText(0, caretOffset));
 
             var completionList = completion.ToList();
             if (completionList.Count == 0) return;
@@ -103,6 +107,9 @@ public class SqlCompletionBehavior
             {
                 CloseWhenCaretAtBeginning = false
             };
+            
+            _completionWindow.StartOffset = wordStart;
+            _completionWindow.EndOffset = caretOffset;
 
             var data = _completionWindow.CompletionList.CompletionData;
             foreach (var item in completionList)
@@ -112,6 +119,22 @@ public class SqlCompletionBehavior
 
             _completionWindow.Show();
             _completionWindow.Closed += (_, _) => _completionWindow = null;
+        }
+
+        private static int FindWordStart(string textBeforeCaret)
+        {
+            if (string.IsNullOrEmpty(textBeforeCaret)) return 0;
+            
+            for (var i = textBeforeCaret.Length - 1; i >= 0; i--)
+            {
+                var c = textBeforeCaret[i];
+                if (!char.IsLetterOrDigit(c) && c != '_')
+                {
+                    return i + 1;
+                }
+            }
+            
+            return 0;
         }
 
         public void Dispose()
