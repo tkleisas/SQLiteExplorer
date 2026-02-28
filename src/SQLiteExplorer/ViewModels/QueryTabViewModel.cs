@@ -44,6 +44,8 @@ public partial class QueryTabViewModel : ViewModelBase
     private List<string> _columnNames = new();
     private List<Dictionary<string, object?>> _rows = new();
 
+    public event EventHandler<string>? QueryExecuted;
+
     public QueryTabViewModel(ISqliteService sqliteService)
     {
         _sqliteService = sqliteService;
@@ -80,6 +82,7 @@ public partial class QueryTabViewModel : ViewModelBase
             {
                 ResultStatus = $"{result.RowCount} row(s) in {result.ExecutionTimeMs}ms";
                 LoadResultData(result);
+                QueryExecuted?.Invoke(this, SqlText);
             }
         }
         catch (Exception ex)

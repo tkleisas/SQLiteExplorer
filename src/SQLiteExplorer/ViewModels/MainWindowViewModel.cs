@@ -36,6 +36,12 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private QueryTabViewModel? _selectedTab;
 
+    [ObservableProperty]
+    private ObservableCollection<string> _queryHistory = new();
+
+    [ObservableProperty]
+    private string? _selectedHistoryItem;
+
     public static IValueConverter ConnectedConverter { get; } = new FuncValueConverter<bool, string>(b => b ? "Connected" : "Disconnected");
 
     public MainWindowViewModel() : this(new SqliteService()) { }
@@ -44,6 +50,31 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _sqliteService = sqliteService;
         AddNewQueryTab();
+    }
+
+    partial void OnSelectedHistoryItemChanged(string? value)
+    {
+        if (value != null && SelectedTab != null)
+        {
+            SelectedTab.SqlText = value;
+        }
+    }
+
+    public void AddToHistory(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql)) return;
+        
+        var trimmed = sql.Trim();
+        if (QueryHistory.Contains(trimmed))
+        {
+            QueryHistory.Remove(trimmed);
+        }
+        QueryHistory.Insert(0, trimmed);
+        
+        if (QueryHistory.Count > 50)
+        {
+            QueryHistory.RemoveAt(QueryHistory.Count - 1);
+        }
     }
 
     [RelayCommand]
@@ -155,6 +186,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Title = $"Query {QueryTabs.Count + 1}"
         };
+        tab.QueryExecuted += (_, sql) => AddToHistory(sql);
         QueryTabs.Add(tab);
         SelectedTab = tab;
     }

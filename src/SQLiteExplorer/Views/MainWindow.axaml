@@ -67,6 +67,11 @@
                             <TextBlock Text="Execute" VerticalAlignment="Center" Margin="4,0"/>
                         </StackPanel>
                     </Button>
+                    <ComboBox ItemsSource="{Binding QueryHistory}"
+                              SelectedItem="{Binding SelectedHistoryItem}"
+                              PlaceholderText="History"
+                              Width="120"
+                              ToolTip.Tip="Query History"/>
                 </StackPanel>
                 
                 <TabControl Grid.Row="1"
