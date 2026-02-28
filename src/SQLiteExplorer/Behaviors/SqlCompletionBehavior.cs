@@ -97,6 +97,7 @@ public class SqlCompletionBehavior
             var caretOffset = textArea.Caret.Offset;
             
             var wordStart = FindWordStart(textArea.Document.GetText(0, caretOffset));
+            var typedText = textArea.Document.GetText(wordStart, caretOffset - wordStart);
             
             var completion = _provider.GetCompletions(textArea.Document.GetText(0, caretOffset));
 
@@ -116,6 +117,8 @@ public class SqlCompletionBehavior
             {
                 data.Add(item);
             }
+
+            _completionWindow.CompletionList.SelectItem(typedText);
 
             _completionWindow.Show();
             _completionWindow.Closed += (_, _) => _completionWindow = null;
