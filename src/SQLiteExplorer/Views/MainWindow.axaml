@@ -119,7 +119,8 @@
                                     <AvaloniaEdit:TextEditor ShowLineNumbers="True"
                                                              FontFamily="Consolas, Courier New"
                                                              FontSize="14"
-                                                             SyntaxHighlighting="SQL">
+                                                             SyntaxHighlighting="SQL"
+                                                             behaviors:SqlCompletionBehavior.Provider="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CompletionProvider}">
                                         <i:Interaction.Behaviors>
                                             <behaviors:DocumentTextBindingBehavior Text="{ReflectionBinding SqlText, Mode=TwoWay}"/>
                                         </i:Interaction.Behaviors>

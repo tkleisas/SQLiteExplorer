@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -9,6 +11,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SQLiteExplorer.Completion;
 using SQLiteExplorer.Models;
 using SQLiteExplorer.Services;
 
@@ -41,6 +44,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string? _selectedHistoryItem;
+
+    public SqlCompletionProvider CompletionProvider { get; } = new();
 
     public static IValueConverter ConnectedConverter { get; } = new FuncValueConverter<bool, string>(b => b ? "Connected" : "Disconnected");
 
@@ -155,6 +160,9 @@ public partial class MainWindowViewModel : ViewModelBase
             IsExpanded = true
         };
 
+        var tableNames = new List<string>();
+        var tableColumns = new Dictionary<string, List<string>>();
+
         foreach (var table in info.Tables)
         {
             var tableNode = new DatabaseTreeNode
@@ -163,6 +171,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 NodeType = table.Type == "view" ? NodeType.View : NodeType.Table,
                 IsExpanded = false
             };
+
+            tableNames.Add(table.Name);
+            tableColumns[table.Name] = table.Columns.Select(c => c.Name).ToList();
 
             foreach (var column in table.Columns)
             {
@@ -177,6 +188,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         DatabaseNodes.Add(rootNode);
+        CompletionProvider.UpdateSchema(tableNames, tableColumns);
     }
 
     [RelayCommand]
