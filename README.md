@@ -49,6 +49,26 @@ A desktop tool for inspecting and creating SQLite databases, inspired by SQL Ser
    
    *If it doesn't work, please contact AI SLOPTRONIC (TM) support. We'll pretend to care.* 
 
+### Build Single File Executable
+
+Build a self-contained single executable (no .NET runtime required):
+
+```bash
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release
+```
+
+Output: `src/SQLiteExplorer/bin/Release/net10.0/win-x64/publish/SQLiteExplorer.exe` (~41 MB)
+
+For Linux:
+```bash
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r linux-x64
+```
+
+For macOS:
+```bash
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r osx-x64
+```
+
 ## Usage
 
 ### Open an Existing Database
