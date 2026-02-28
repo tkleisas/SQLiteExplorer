@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data.Converters;
+using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SQLiteExplorer.Models;
@@ -48,39 +49,46 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task OpenDatabase()
     {
-        var dialog = new OpenFileDialog
+        var storage = GetStorageProvider();
+        if (storage == null) return;
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Open SQLite Database",
-            Filters = new System.Collections.Generic.List<FileDialogFilter>
+            AllowMultiple = false,
+            FileTypeFilter = new[]
             {
-                new() { Name = "SQLite Database", Extensions = { "db", "sqlite", "sqlite3" } },
-                new() { Name = "All Files", Extensions = { "*" } }
+                new FilePickerFileType("SQLite Database") { Patterns = new[] { "*.db", "*.sqlite", "*.sqlite3" } },
+                new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
             }
-        };
+        });
 
-        var result = await dialog.ShowAsync(GetMainWindow());
-        if (result == null || result.Length == 0) return;
+        if (files.Count == 0) return;
 
-        var path = result[0];
+        var path = files[0].Path.LocalPath;
         await LoadDatabaseAsync(path);
     }
 
     [RelayCommand]
     private async Task NewDatabase()
     {
-        var dialog = new SaveFileDialog
+        var storage = GetStorageProvider();
+        if (storage == null) return;
+
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Create New SQLite Database",
-            Filters = new System.Collections.Generic.List<FileDialogFilter>
+            SuggestedFileName = "database.db",
+            FileTypeChoices = new[]
             {
-                new() { Name = "SQLite Database", Extensions = { "db", "sqlite", "sqlite3" } }
+                new FilePickerFileType("SQLite Database") { Patterns = new[] { "*.db", "*.sqlite", "*.sqlite3" } }
             }
-        };
+        });
 
-        var result = await dialog.ShowAsync(GetMainWindow());
-        if (string.IsNullOrEmpty(result)) return;
+        if (file == null) return;
 
-        await LoadDatabaseAsync(result);
+        var path = file.Path.LocalPath;
+        await LoadDatabaseAsync(path);
     }
 
     private async Task LoadDatabaseAsync(string path)
@@ -170,10 +178,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static Window? GetMainWindow()
+    private static IStorageProvider? GetStorageProvider()
     {
         return Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow
+            ? desktop.MainWindow?.StorageProvider
             : null;
     }
 }
