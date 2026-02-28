@@ -38,6 +38,9 @@
             <MenuItem Header="_Query">
                 <MenuItem Header="_New Query Tab" Command="{Binding AddNewQueryTabCommand}"/>
             </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About" Command="{Binding ShowAboutCommand}"/>
+            </MenuItem>
         </Menu>
         
         <Grid Grid.Row="1" ColumnDefinitions="250,6,*">
