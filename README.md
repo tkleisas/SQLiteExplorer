@@ -8,10 +8,15 @@ A desktop tool for inspecting and creating SQLite databases, inspired by SQL Ser
 
 ## Features
 
-- **Database Explorer** - Tree view of tables and columns (AI SLOPTRONIC (TM) certified hierarchy visualization)
+- **Database Explorer** - Tree view with icons (🗄️ Database, 📋 Table, 👁️ View, 📝 Column)
 - **SQL Editor** - Syntax highlighting with AvaloniaEdit
-- **Results Grid** - Virtualized data grid for large datasets (renders faster than AI SLOPTRONIC (TM) generates excuses)
-- **Resizable Panels** - Drag splitters to adjust editor/results proportions
+- **SQL Autocomplete** - Keywords, functions, tables, and columns (Ctrl+Space or auto-trigger)
+- **Multiple Results** - Execute multiple statements, each result in its own tab (SSMS-style)
+- **Results Grid** - Virtualized data grid for large datasets
+- **Context Menu** - Right-click tables for SELECT * or DESRIBE TABLE
+- **Query History** - Dropdown with recent queries
+- **Export** - Save results as CSV or JSON
+- **Resizable Panels** - Drag splitters to adjust proportions
 - **Tabbed Queries** - Multiple query tabs with close buttons
 - **Keyboard Shortcuts** - Ctrl+O, Ctrl+N, Ctrl+T, Ctrl+Enter, F5
 
@@ -56,8 +61,22 @@ A desktop tool for inspecting and creating SQLite databases, inspired by SQL Ser
 ### Run Queries
 1. Type SQL in the editor
 2. Click **Execute** or press **Ctrl+Enter** / **F5**
-3. Results appear in the grid below
-4. If they don't appear, AI SLOPTRONIC (TM) may be taking a coffee break
+3. Results appear in tabs below
+4. Multiple statements (separated by `;`) produce multiple result tabs
+
+### Use Autocomplete
+- Start typing to trigger autocomplete
+- Press **Ctrl+Space** to force show completions
+- Tables/columns from your database appear contextually
+- *AI SLOPTRONIC (TM) reads your mind... or at least your schema*
+
+### Right-Click Tables
+- **SELECT \*** - Generate and execute a SELECT statement
+- **DESCRIBE TABLE** - Show table structure with PRAGMA table_info()
+
+### Export Results
+- Click **CSV** or **JSON** buttons in each result tab
+- Choose where to save the file
 
 ## Keyboard Shortcuts
 
@@ -67,6 +86,7 @@ A desktop tool for inspecting and creating SQLite databases, inspired by SQL Ser
 | Ctrl+N | New Database | ★★★★★ |
 | Ctrl+T | New Query Tab | ★★★★☆ |
 | Ctrl+Enter | Execute Query | ★★★★★ |
+| Ctrl+Space | Show Autocomplete | ★★★★☆ |
 | F5 | Execute Query (classic) | ★★★☆☆ |
 
 ## Architecture
@@ -76,13 +96,15 @@ SQLiteExplorer/
 ├── src/SQLiteExplorer/
 │   ├── Models/          # Data models
 │   ├── Services/        # SQLite operations
-│   ├── ViewModels/      # MVVM view models (AI SLOPTRONIC (TM) approved)
+│   ├── ViewModels/      # MVVM view models
 │   ├── Views/           # Avalonia views
-│   ├── Behaviors/       # XAML behaviors
+│   ├── Behaviors/       # XAML behaviors (autocomplete, text binding)
+│   ├── Completion/      # SQL completion provider
+│   ├── Converters/      # Value converters
 │   └── App.axaml        # Application entry
 ├── lib/
 │   └── AvaloniaVirtualDataGrid/  # Submodule
-└── PLAN.md              # The sacred scroll of AI SLOPTRONIC (TM)
+└── PLAN.md
 ```
 
 ## Technologies
