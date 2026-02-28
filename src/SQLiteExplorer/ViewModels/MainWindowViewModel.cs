@@ -206,6 +206,29 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void SelectTable(DatabaseTreeNode node)
+    {
+        if (node == null || !node.IsTableOrView) return;
+        GenerateSelect(node.Name);
+    }
+
+    [RelayCommand]
+    private void DescribeTable(DatabaseTreeNode node)
+    {
+        if (node == null || !node.IsTableOrView) return;
+        
+        if (SelectedTab == null)
+        {
+            AddNewQueryTab();
+        }
+        
+        if (SelectedTab != null)
+        {
+            SelectedTab.SqlText = $"PRAGMA table_info({node.Name});";
+        }
+    }
+
+    [RelayCommand]
     private void CloseQueryTab(QueryTabViewModel tab)
     {
         QueryTabs.Remove(tab);
@@ -267,4 +290,6 @@ public partial class DatabaseTreeNode : ObservableObject
     };
 
     public string DisplayName => $"{Icon} {Name}";
+
+    public bool IsTableOrView => NodeType == NodeType.Table || NodeType == NodeType.View;
 }

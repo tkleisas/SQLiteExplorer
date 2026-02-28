@@ -44,10 +44,23 @@
             <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Text="Database Explorer" Margin="10,8" FontWeight="SemiBold"/>
-                    <TreeView Grid.Row="1" ItemsSource="{Binding DatabaseNodes}" Margin="5,0" DoubleTapped="OnTreeViewDoubleTapped">
+                    <TreeView Grid.Row="1" Name="DatabaseTreeView" ItemsSource="{Binding DatabaseNodes}" Margin="5,0">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}">
-                                <TextBlock Text="{Binding DisplayName}"/>
+                                <TextBlock Text="{Binding DisplayName}">
+                                    <TextBlock.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="SELECT *" 
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SelectTableCommand}"
+                                                      CommandParameter="{Binding}"
+                                                      IsVisible="{ReflectionBinding IsTableOrView}"/>
+                                            <MenuItem Header="DESCRIBE TABLE" 
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DescribeTableCommand}"
+                                                      CommandParameter="{Binding}"
+                                                      IsVisible="{ReflectionBinding IsTableOrView}"/>
+                                        </ContextMenu>
+                                    </TextBlock.ContextMenu>
+                                </TextBlock>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
