@@ -24,11 +24,11 @@ public partial class MainWindow : Window
             switch (e.Key)
             {
                 case Key.O:
-                    vm.OpenDatabaseCommand.Execute(null);
+                    vm.OpenSqliteDatabaseCommand.Execute(null);
                     e.Handled = true;
                     break;
                 case Key.N:
-                    vm.NewDatabaseCommand.Execute(null);
+                    vm.NewSqliteDatabaseCommand.Execute(null);
                     e.Handled = true;
                     break;
                 case Key.T:

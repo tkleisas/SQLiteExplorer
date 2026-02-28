@@ -1,16 +1,17 @@
+using System;
 using System.Threading.Tasks;
 using SQLiteExplorer.Models;
 
 namespace SQLiteExplorer.Services;
 
-public interface ISqliteService
+public interface IDatabaseService : IDisposable
 {
-    string? CurrentDatabasePath { get; }
+    ConnectionInfo? ConnectionInfo { get; }
     bool IsConnected { get; }
+    DatabaseType DatabaseType { get; }
     
-    Task<bool> OpenDatabaseAsync(string path);
-    void CloseDatabase();
+    Task<bool> ConnectAsync(ConnectionInfo connectionInfo);
+    void Disconnect();
     Task<DatabaseInfo> GetDatabaseInfoAsync();
-    Task<QueryResult> ExecuteQueryAsync(string sql);
     Task<MultiQueryResult> ExecuteMultipleAsync(string sql);
 }

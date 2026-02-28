@@ -27,8 +27,14 @@
     <Grid RowDefinitions="Auto,*">
         <Menu Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
             <MenuItem Header="_File">
-                <MenuItem Header="_New Database..." Command="{Binding NewDatabaseCommand}"/>
-                <MenuItem Header="_Open Database..." Command="{Binding OpenDatabaseCommand}"/>
+                <MenuItem Header="_New">
+                    <MenuItem Header="SQLite Database..." Command="{Binding NewSqliteDatabaseCommand}"/>
+                    <MenuItem Header="PostgreSQL Database..." Command="{Binding OpenPostgresDatabaseCommand}"/>
+                </MenuItem>
+                <MenuItem Header="_Open">
+                    <MenuItem Header="SQLite Database..." Command="{Binding OpenSqliteDatabaseCommand}"/>
+                    <MenuItem Header="PostgreSQL Database..." Command="{Binding OpenPostgresDatabaseCommand}"/>
+                </MenuItem>
                 <Separator/>
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
             </MenuItem>

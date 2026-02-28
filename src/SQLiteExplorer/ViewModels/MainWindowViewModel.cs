@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,7 +18,7 @@ namespace SQLiteExplorer.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly ISqliteService _sqliteService;
+    private IDatabaseService? _databaseService;
     
     [ObservableProperty]
     private string _title = "SQLite Explorer";
@@ -29,6 +28,9 @@ public partial class MainWindowViewModel : ViewModelBase
     
     [ObservableProperty]
     private bool _isConnected;
+    
+    [ObservableProperty]
+    private DatabaseType _currentDatabaseType;
     
     [ObservableProperty]
     private ObservableCollection<DatabaseTreeNode> _databaseNodes = new();
@@ -49,11 +51,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public static IValueConverter ConnectedConverter { get; } = new FuncValueConverter<bool, string>(b => b ? "Connected" : "Disconnected");
 
-    public MainWindowViewModel() : this(new SqliteService()) { }
-
-    public MainWindowViewModel(ISqliteService sqliteService)
+    public MainWindowViewModel()
     {
-        _sqliteService = sqliteService;
         AddNewQueryTab();
     }
 
@@ -83,7 +82,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task OpenDatabase()
+    private async Task OpenSqliteDatabase()
     {
         var storage = GetStorageProvider();
         if (storage == null) return;
@@ -102,11 +101,12 @@ public partial class MainWindowViewModel : ViewModelBase
         if (files.Count == 0) return;
 
         var path = files[0].Path.LocalPath;
-        await LoadDatabaseAsync(path);
+        var connectionInfo = new SqliteConnectionInfo { FilePath = path };
+        await ConnectDatabaseAsync(connectionInfo);
     }
 
     [RelayCommand]
-    private async Task NewDatabase()
+    private async Task NewSqliteDatabase()
     {
         var storage = GetStorageProvider();
         if (storage == null) return;
@@ -124,17 +124,45 @@ public partial class MainWindowViewModel : ViewModelBase
         if (file == null) return;
 
         var path = file.Path.LocalPath;
-        await LoadDatabaseAsync(path);
+        var connectionInfo = new SqliteConnectionInfo { FilePath = path };
+        await ConnectDatabaseAsync(connectionInfo);
     }
 
-    private async Task LoadDatabaseAsync(string path)
+    [RelayCommand]
+    private async Task OpenPostgresDatabase()
+    {
+        var dialog = new Views.PostgresConnectionDialog();
+        
+        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop 
+            && desktop.MainWindow != null)
+        {
+            await dialog.ShowDialog(desktop.MainWindow);
+        }
+
+        if (dialog.ConnectionInfo != null)
+        {
+            await ConnectDatabaseAsync(dialog.ConnectionInfo);
+        }
+    }
+
+    private async Task ConnectDatabaseAsync(ConnectionInfo connectionInfo)
     {
         try
         {
-            await _sqliteService.OpenDatabaseAsync(path);
-            IsConnected = _sqliteService.IsConnected;
-            StatusMessage = $"Connected: {Path.GetFileName(path)}";
-            Title = $"SQLite Explorer - {Path.GetFileName(path)}";
+            _databaseService?.Dispose();
+            _databaseService = DatabaseServiceFactory.Create(connectionInfo.DatabaseType);
+            
+            var success = await _databaseService.ConnectAsync(connectionInfo);
+            if (!success)
+            {
+                StatusMessage = "Failed to connect";
+                return;
+            }
+
+            CurrentDatabaseType = connectionInfo.DatabaseType;
+            IsConnected = _databaseService.IsConnected;
+            StatusMessage = $"Connected: {connectionInfo.DisplayName}";
+            Title = $"{GetAppTitle()} - {connectionInfo.DisplayName}";
             
             await RefreshDatabaseTree();
         }
@@ -144,14 +172,23 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private string GetAppTitle()
+    {
+        return CurrentDatabaseType switch
+        {
+            DatabaseType.PostgreSQL => "PostgreSQL Explorer",
+            _ => "SQLite Explorer"
+        };
+    }
+
     [RelayCommand]
     private async Task RefreshDatabaseTree()
     {
-        if (!_sqliteService.IsConnected) return;
+        if (_databaseService == null || !_databaseService.IsConnected) return;
 
         DatabaseNodes.Clear();
         
-        var info = await _sqliteService.GetDatabaseInfoAsync();
+        var info = await _databaseService.GetDatabaseInfoAsync();
         var rootNode = new DatabaseTreeNode
         {
             Name = info.Name,
@@ -194,10 +231,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void AddNewQueryTab()
     {
-        var tab = new QueryTabViewModel(_sqliteService)
-        {
-            Title = $"Query {QueryTabs.Count + 1}"
-        };
+        var tab = new QueryTabViewModel(() => _databaseService);
+        tab.Title = $"Query {QueryTabs.Count + 1}";
         tab.QueryExecuted += (_, sql) => AddToHistory(sql);
         QueryTabs.Add(tab);
         SelectedTab = tab;
@@ -236,7 +271,12 @@ public partial class MainWindowViewModel : ViewModelBase
         
         if (SelectedTab != null)
         {
-            SelectedTab.SqlText = $"PRAGMA table_info({node.Name});";
+            var describeSql = CurrentDatabaseType switch
+            {
+                DatabaseType.PostgreSQL => $"SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '{node.Name}';",
+                _ => $"PRAGMA table_info({node.Name});"
+            };
+            SelectedTab.SqlText = describeSql;
         }
     }
 

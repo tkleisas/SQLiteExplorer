@@ -19,7 +19,7 @@ namespace SQLiteExplorer.ViewModels;
 
 public partial class QueryTabViewModel : ViewModelBase
 {
-    private readonly ISqliteService _sqliteService;
+    private readonly Func<IDatabaseService?> _databaseServiceFactory;
 
     [ObservableProperty]
     private string _title = "Query";
@@ -44,16 +44,18 @@ public partial class QueryTabViewModel : ViewModelBase
 
     public event EventHandler<string>? QueryExecuted;
 
-    public QueryTabViewModel(ISqliteService sqliteService)
+    public QueryTabViewModel(Func<IDatabaseService?> databaseServiceFactory)
     {
-        _sqliteService = sqliteService;
+        _databaseServiceFactory = databaseServiceFactory;
     }
 
     [RelayCommand]
     private async Task ExecuteQuery()
     {
         if (string.IsNullOrWhiteSpace(SqlText)) return;
-        if (!_sqliteService.IsConnected)
+        
+        var databaseService = _databaseServiceFactory();
+        if (databaseService == null || !databaseService.IsConnected)
         {
             ResultStatus = "No database connected";
             HasError = true;
@@ -67,18 +69,9 @@ public partial class QueryTabViewModel : ViewModelBase
 
         try
         {
-            var multiResult = await _sqliteService.ExecuteMultipleAsync(SqlText);
+            var multiResult = await databaseService.ExecuteMultipleAsync(SqlText);
 
             HasError = multiResult.HasErrors;
-            
-            var statusParts = new List<string>();
-            
-            for (var i = 0; i < multiResult.Results.Count; i++)
-            {
-                var result = multiResult.Results[i];
-                var resultSet = new ResultSetViewModel(result, i + 1);
-                ResultSets.Add(resultSet);
-            }
 
             if (multiResult.Results.Count == 0)
             {
@@ -104,6 +97,12 @@ public partial class QueryTabViewModel : ViewModelBase
                 {
                     ResultStatus = $"{multiResult.Results.Count} statements - {multiResult.TotalRows} row(s) in {multiResult.TotalExecutionTimeMs}ms";
                 }
+            }
+
+            for (var i = 0; i < multiResult.Results.Count; i++)
+            {
+                var resultSet = new ResultSetViewModel(multiResult.Results[i], i + 1);
+                ResultSets.Add(resultSet);
             }
 
             if (ResultSets.Count > 0)
