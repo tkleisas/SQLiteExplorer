@@ -160,6 +160,20 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void GenerateSelect(string tableName)
+    {
+        if (SelectedTab == null)
+        {
+            AddNewQueryTab();
+        }
+        
+        if (SelectedTab != null)
+        {
+            SelectedTab.SqlText = $"SELECT * FROM {tableName};";
+        }
+    }
+
+    [RelayCommand]
     private void CloseQueryTab(QueryTabViewModel tab)
     {
         QueryTabs.Remove(tab);
@@ -210,4 +224,15 @@ public partial class DatabaseTreeNode : ObservableObject
 
     [ObservableProperty]
     private bool _isExpanded;
+
+    public string Icon => NodeType switch
+    {
+        NodeType.Database => "🗄️",
+        NodeType.Table => "📋",
+        NodeType.View => "👁️",
+        NodeType.Column => "📝",
+        _ => "📄"
+    };
+
+    public string DisplayName => $"{Icon} {Name}";
 }

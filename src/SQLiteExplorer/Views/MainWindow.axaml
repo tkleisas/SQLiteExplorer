@@ -44,10 +44,10 @@
             <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Text="Database Explorer" Margin="10,8" FontWeight="SemiBold"/>
-                    <TreeView Grid.Row="1" ItemsSource="{Binding DatabaseNodes}" Margin="5,0">
+                    <TreeView Grid.Row="1" ItemsSource="{Binding DatabaseNodes}" Margin="5,0" DoubleTapped="OnTreeViewDoubleTapped">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}">
-                                <TextBlock Text="{Binding Name}"/>
+                                <TextBlock Text="{Binding DisplayName}"/>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
@@ -110,8 +110,18 @@
                                 <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="8,0"/>
                                 <Grid Grid.Row="2" RowDefinitions="Auto,*" Margin="8,0,8,8">
                                     <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
-                                        <TextBlock Text="{Binding ResultStatus}" 
-                                                   Foreground="{Binding HasError, Converter={StaticResource HasErrorToColorConverter}}"/>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding ResultStatus}" 
+                                                       Foreground="{Binding HasError, Converter={StaticResource HasErrorToColorConverter}}"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                                <Button Content="CSV" 
+                                                        Command="{Binding ExportCsvCommand}"
+                                                        FontSize="11" Padding="6,2"/>
+                                                <Button Content="JSON" 
+                                                        Command="{Binding ExportJsonCommand}"
+                                                        FontSize="11" Padding="6,2"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
                                     <views:QueryResultsView Grid.Row="1" DataContext="{ReflectionBinding}"/>
                                 </Grid>

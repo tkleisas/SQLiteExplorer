@@ -53,4 +53,16 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    private void OnTreeViewDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (sender is not TreeView treeView) return;
+
+        if (treeView.SelectedItem is DatabaseTreeNode node && 
+            (node.NodeType == NodeType.Table || node.NodeType == NodeType.View))
+        {
+            vm.GenerateSelectCommand.Execute(node.Name);
+        }
+    }
 }
