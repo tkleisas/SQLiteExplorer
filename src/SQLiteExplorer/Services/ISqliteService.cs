@@ -12,4 +12,5 @@ public interface ISqliteService
     void CloseDatabase();
     Task<DatabaseInfo> GetDatabaseInfoAsync();
     Task<QueryResult> ExecuteQueryAsync(string sql);
+    Task<MultiQueryResult> ExecuteMultipleAsync(string sql);
 }

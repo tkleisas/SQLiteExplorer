@@ -132,17 +132,37 @@
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Grid.Column="0" Text="{Binding ResultStatus}" 
                                                        Foreground="{Binding HasError, Converter={StaticResource HasErrorToColorConverter}}"/>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                                <Button Content="CSV" 
-                                                        Command="{Binding ExportCsvCommand}"
-                                                        FontSize="11" Padding="6,2"/>
-                                                <Button Content="JSON" 
-                                                        Command="{Binding ExportJsonCommand}"
-                                                        FontSize="11" Padding="6,2"/>
-                                            </StackPanel>
                                         </Grid>
                                     </Border>
-                                    <views:QueryResultsView Grid.Row="1" DataContext="{ReflectionBinding}"/>
+                                    <TabControl Grid.Row="1" ItemsSource="{Binding ResultSets}" SelectedItem="{Binding SelectedResultSet}"
+                                                Padding="0" Margin="0,4,0,0">
+                                        <TabControl.ItemTemplate>
+                                            <DataTemplate DataType="vm:ResultSetViewModel">
+                                                <TextBlock Text="{Binding Title}" FontSize="11"/>
+                                            </DataTemplate>
+                                        </TabControl.ItemTemplate>
+                                        <TabControl.ContentTemplate>
+                                            <DataTemplate DataType="vm:ResultSetViewModel">
+                                                <Grid RowDefinitions="Auto,*">
+                                                    <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0" Text="{Binding Status}" 
+                                                                       Foreground="{Binding HasError, Converter={StaticResource HasErrorToColorConverter}}"/>
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                                                <Button Content="CSV" 
+                                                                        Command="{Binding ExportCsvCommand}"
+                                                                        FontSize="11" Padding="6,2"/>
+                                                                <Button Content="JSON" 
+                                                                        Command="{Binding ExportJsonCommand}"
+                                                                        FontSize="11" Padding="6,2"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                    <views:QueryResultsView Grid.Row="1" DataContext="{ReflectionBinding}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </TabControl.ContentTemplate>
+                                    </TabControl>
                                 </Grid>
                             </Grid>
                         </DataTemplate>

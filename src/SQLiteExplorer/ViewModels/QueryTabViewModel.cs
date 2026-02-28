@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -36,13 +37,10 @@ public partial class QueryTabViewModel : ViewModelBase
     private bool _isLoading;
 
     [ObservableProperty]
-    private VirtualDataGridColumnCollection _columns = new();
+    private ObservableCollection<ResultSetViewModel> _resultSets = new();
 
     [ObservableProperty]
-    private IDataProvider? _dataItems;
-
-    private List<string> _columnNames = new();
-    private List<Dictionary<string, object?>> _rows = new();
+    private ResultSetViewModel? _selectedResultSet;
 
     public event EventHandler<string>? QueryExecuted;
 
@@ -64,26 +62,56 @@ public partial class QueryTabViewModel : ViewModelBase
 
         IsLoading = true;
         HasError = false;
+        ResultSets.Clear();
+        SelectedResultSet = null;
 
         try
         {
-            var result = await _sqliteService.ExecuteQueryAsync(SqlText);
+            var multiResult = await _sqliteService.ExecuteMultipleAsync(SqlText);
 
-            if (!result.IsSuccess)
+            HasError = multiResult.HasErrors;
+            
+            var statusParts = new List<string>();
+            
+            for (var i = 0; i < multiResult.Results.Count; i++)
             {
-                ResultStatus = $"Error: {result.ErrorMessage}";
-                HasError = true;
-                Columns.Clear();
-                DataItems = null;
-                _columnNames.Clear();
-                _rows.Clear();
+                var result = multiResult.Results[i];
+                var resultSet = new ResultSetViewModel(result, i + 1);
+                ResultSets.Add(resultSet);
+            }
+
+            if (multiResult.Results.Count == 0)
+            {
+                ResultStatus = "No statements executed";
+            }
+            else if (multiResult.Results.Count == 1)
+            {
+                var r = multiResult.Results[0];
+                if (r.IsSuccess)
+                    ResultStatus = $"{r.RowCount} row(s) in {r.ExecutionTimeMs}ms";
+                else
+                    ResultStatus = $"Error: {r.ErrorMessage}";
             }
             else
             {
-                ResultStatus = $"{result.RowCount} row(s) in {result.ExecutionTimeMs}ms";
-                LoadResultData(result);
-                QueryExecuted?.Invoke(this, SqlText);
+                if (multiResult.HasErrors)
+                {
+                    var errorCount = multiResult.ErrorCount;
+                    var successCount = multiResult.SuccessCount;
+                    ResultStatus = $"{successCount} succeeded, {errorCount} failed - Total: {multiResult.TotalRows} row(s) in {multiResult.TotalExecutionTimeMs}ms";
+                }
+                else
+                {
+                    ResultStatus = $"{multiResult.Results.Count} statements - {multiResult.TotalRows} row(s) in {multiResult.TotalExecutionTimeMs}ms";
+                }
             }
+
+            if (ResultSets.Count > 0)
+            {
+                SelectedResultSet = ResultSets[0];
+            }
+
+            QueryExecuted?.Invoke(this, SqlText);
         }
         catch (Exception ex)
         {
@@ -95,18 +123,52 @@ public partial class QueryTabViewModel : ViewModelBase
             IsLoading = false;
         }
     }
+}
 
-    private void LoadResultData(QueryResult result)
+public partial class ResultSetViewModel : ObservableObject
+{
+    private List<string> _columnNames = new();
+    private List<Dictionary<string, object?>> _rows = new();
+
+    [ObservableProperty]
+    private string _title;
+
+    [ObservableProperty]
+    private string _status;
+
+    [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
+    private VirtualDataGridColumnCollection _columns = new();
+
+    [ObservableProperty]
+    private IDataProvider? _dataItems;
+
+    public ResultSetViewModel(QueryResult result, int index)
     {
-        Columns.Clear();
-        DataItems = null;
-
         _columnNames = result.ColumnNames;
         _rows = result.Rows;
+        HasError = !result.IsSuccess;
 
-        if (result.ColumnNames.Count == 0) return;
+        if (result.IsSuccess)
+        {
+            Title = $"Result {index}: {result.RowCount} row(s)";
+            Status = $"{result.RowCount} row(s) in {result.ExecutionTimeMs}ms";
+            LoadColumns();
+        }
+        else
+        {
+            Title = $"Result {index}: Error";
+            Status = $"Error: {result.ErrorMessage}";
+        }
+    }
 
-        foreach (var colName in result.ColumnNames)
+    private void LoadColumns()
+    {
+        if (_columnNames.Count == 0) return;
+
+        foreach (var colName in _columnNames)
         {
             Columns.Add(new VirtualDataGridTextColumn(colName, row =>
             {
@@ -115,7 +177,7 @@ public partial class QueryTabViewModel : ViewModelBase
                 return null;
             }));
         }
-        DataItems = new InMemoryDataProvider<Dictionary<string, object?>>(result.Rows);
+        DataItems = new InMemoryDataProvider<Dictionary<string, object?>>(_rows);
     }
 
     [RelayCommand]

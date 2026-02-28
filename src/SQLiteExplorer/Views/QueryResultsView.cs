@@ -10,7 +10,7 @@ namespace SQLiteExplorer.Views;
 public partial class QueryResultsView : UserControl
 {
     private readonly VirtualDataGrid _dataGrid;
-    private QueryTabViewModel? _viewModel;
+    private ResultSetViewModel? _viewModel;
 
     public QueryResultsView()
     {
@@ -30,7 +30,7 @@ public partial class QueryResultsView : UserControl
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
         
-        _viewModel = DataContext as QueryTabViewModel;
+        _viewModel = DataContext as ResultSetViewModel;
         
         if (_viewModel != null)
         {
@@ -41,7 +41,7 @@ public partial class QueryResultsView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(QueryTabViewModel.DataItems))
+        if (e.PropertyName == nameof(ResultSetViewModel.DataItems))
         {
             UpdateGrid();
         }
