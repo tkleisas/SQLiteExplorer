@@ -59,19 +59,22 @@ public class PostgresService : IDatabaseService
             WHERE table_schema = 'public' AND table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY table_type, table_name";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        using (command)
         {
-            var tableName = reader.GetString(0);
-            var tableType = reader.GetString(1) == "VIEW" ? "view" : "table";
-
-            var table = new TableInfo
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                Name = tableName,
-                Type = tableType
-            };
+                var tableName = reader.GetString(0);
+                var tableType = reader.GetString(1) == "VIEW" ? "view" : "table";
 
-            info.Tables.Add(table);
+                var table = new TableInfo
+                {
+                    Name = tableName,
+                    Type = tableType
+                };
+
+                info.Tables.Add(table);
+            }
         }
 
         foreach (var table in info.Tables)
@@ -93,16 +96,19 @@ public class PostgresService : IDatabaseService
 
         command.Parameters.AddWithValue("tableName", table.Name);
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        using (command)
         {
-            table.Columns.Add(new ColumnInfo
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                Name = reader.GetString(0),
-                Type = reader.GetString(1),
-                NotNull = reader.GetString(2) == "NO",
-                IsPrimaryKey = false
-            });
+                table.Columns.Add(new ColumnInfo
+                {
+                    Name = reader.GetString(0),
+                    Type = reader.GetString(1),
+                    NotNull = reader.GetString(2) == "NO",
+                    IsPrimaryKey = false
+                });
+            }
         }
 
         await LoadPrimaryKeysAsync(table);
@@ -122,14 +128,17 @@ public class PostgresService : IDatabaseService
 
         command.Parameters.AddWithValue("tableName", table.Name);
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        using (command)
         {
-            var columnName = reader.GetString(0);
-            var column = table.Columns.Find(c => c.Name == columnName);
-            if (column != null)
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                column.IsPrimaryKey = true;
+                var columnName = reader.GetString(0);
+                var column = table.Columns.Find(c => c.Name == columnName);
+                if (column != null)
+                {
+                    column.IsPrimaryKey = true;
+                }
             }
         }
     }

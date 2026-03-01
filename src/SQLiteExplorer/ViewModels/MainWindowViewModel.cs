@@ -248,7 +248,10 @@ public partial class MainWindowViewModel : ViewModelBase
         
         if (SelectedTab != null)
         {
-            SelectedTab.SqlText = $"SELECT * FROM {tableName};";
+            var quotedName = CurrentDatabaseType == DatabaseType.PostgreSQL 
+                ? $"\"{tableName}\"" 
+                : tableName;
+            SelectedTab.SqlText = $"SELECT * FROM {quotedName};";
         }
     }
 
@@ -271,10 +274,14 @@ public partial class MainWindowViewModel : ViewModelBase
         
         if (SelectedTab != null)
         {
+            var quotedName = CurrentDatabaseType == DatabaseType.PostgreSQL 
+                ? $"\"{node.Name}\"" 
+                : node.Name;
+            
             var describeSql = CurrentDatabaseType switch
             {
                 DatabaseType.PostgreSQL => $"SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '{node.Name}';",
-                _ => $"PRAGMA table_info({node.Name});"
+                _ => $"PRAGMA table_info({quotedName});"
             };
             SelectedTab.SqlText = describeSql;
         }
