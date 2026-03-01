@@ -45,11 +45,14 @@
                 <MenuItem Header="_New Query Tab" Command="{Binding AddNewQueryTabCommand}"/>
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem Header="SQLite _Cheatsheet" Command="{Binding ShowSqliteCheatsheetCommand}"/>
+                <MenuItem Header="PostgreSQL _Cheatsheet" Command="{Binding ShowPostgresCheatsheetCommand}"/>
+                <Separator/>
                 <MenuItem Header="_About" Command="{Binding ShowAboutCommand}"/>
             </MenuItem>
         </Menu>
         
-        <Grid Grid.Row="1" ColumnDefinitions="250,6,*">
+        <Grid Grid.Row="1" ColumnDefinitions="250,6,*,6,Auto">
             <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Text="Database Explorer" Margin="10,8" FontWeight="SemiBold"/>
@@ -186,6 +189,35 @@
                     </Grid>
                 </Border>
             </Grid>
+            
+            <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                          IsVisible="{Binding Cheatsheet.IsVisible}"/>
+            
+            <Border Grid.Column="4" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
+                    IsVisible="{Binding Cheatsheet.IsVisible}"
+                    Width="400">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Cheatsheet.Title}" FontWeight="SemiBold"/>
+                            <Button Grid.Column="1" Command="{Binding CloseCheatsheetCommand}"
+                                    Width="20" Height="20" Padding="0" Background="Transparent" BorderThickness="0">
+                                <TextBlock Text="×" FontSize="14" Foreground="Gray"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <ScrollViewer Grid.Row="1">
+                        <TextBox Text="{Binding Cheatsheet.Content}"
+                                 IsReadOnly="True"
+                                 FontFamily="Consolas, Courier New"
+                                 FontSize="12"
+                                 TextWrapping="Wrap"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="8"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Window>

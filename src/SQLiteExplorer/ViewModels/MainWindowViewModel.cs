@@ -47,6 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string? _selectedHistoryItem;
 
+    public CheatsheetViewModel Cheatsheet { get; } = new();
+
     public SqlCompletionProvider CompletionProvider { get; } = new();
 
     public static IValueConverter ConnectedConverter { get; } = new FuncValueConverter<bool, string>(b => b ? "Connected" : "Disconnected");
@@ -307,6 +309,28 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             aboutWindow.ShowDialog(desktop.MainWindow);
         }
+    }
+
+    [RelayCommand]
+    private void ShowSqliteCheatsheet()
+    {
+        Cheatsheet.Title = "SQLite Cheatsheet";
+        Cheatsheet.Content = Cheatsheets.Sqlite;
+        Cheatsheet.IsVisible = true;
+    }
+
+    [RelayCommand]
+    private void ShowPostgresCheatsheet()
+    {
+        Cheatsheet.Title = "PostgreSQL Cheatsheet";
+        Cheatsheet.Content = Cheatsheets.Postgres;
+        Cheatsheet.IsVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseCheatsheet()
+    {
+        Cheatsheet.IsVisible = false;
     }
 
     [RelayCommand]
