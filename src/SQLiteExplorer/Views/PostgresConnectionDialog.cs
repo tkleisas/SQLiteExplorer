@@ -18,7 +18,7 @@ public partial class PostgresConnectionDialog : Window
     {
         Title = "Connect to PostgreSQL";
         Width = 400;
-        Height = 350;
+        Height = 420;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
