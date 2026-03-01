@@ -53,23 +53,41 @@ A desktop tool for inspecting and creating SQLite and PostgreSQL databases, insp
 
 ### Build Single File Executable
 
-Build a self-contained single executable (no .NET runtime required):
+Build a self-contained single executable (no .NET runtime required on target machine):
 
+**Windows (x64):**
 ```bash
-dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r win-x64
 ```
-
 Output: `src/SQLiteExplorer/bin/Release/net10.0/win-x64/publish/SQLiteExplorer.exe` (~41 MB)
 
-For Linux:
+**Windows (ARM64):**
+```bash
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r win-arm64
+```
+
+**Linux (x64):**
 ```bash
 dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r linux-x64
 ```
+Output: `src/SQLiteExplorer/bin/Release/net10.0/linux-x64/publish/SQLiteExplorer`
 
-For macOS:
+**Linux (ARM64):**
+```bash
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r linux-arm64
+```
+
+**macOS (x64):**
 ```bash
 dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r osx-x64
 ```
+
+**macOS (ARM64/Apple Silicon):**
+```bash
+dotnet publish src/SQLiteExplorer/SQLiteExplorer.csproj -c Release -r osx-arm64
+```
+
+**Deployment:** Just copy the executable to the target machine - no installation required!
 
 ## Usage
 
