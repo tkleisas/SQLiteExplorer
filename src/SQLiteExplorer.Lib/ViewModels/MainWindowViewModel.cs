@@ -147,6 +147,15 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Opens a SQLite database file by path without showing a file picker dialog.
+    /// </summary>
+    public async Task OpenDatabaseByPathAsync(string filePath)
+    {
+        var connectionInfo = new SqliteConnectionInfo { FilePath = filePath };
+        await ConnectDatabaseAsync(connectionInfo);
+    }
+
     private async Task ConnectDatabaseAsync(ConnectionInfo connectionInfo)
     {
         try
