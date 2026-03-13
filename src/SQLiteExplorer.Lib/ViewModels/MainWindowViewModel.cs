@@ -156,6 +156,20 @@ public partial class MainWindowViewModel : ViewModelBase
         await ConnectDatabaseAsync(connectionInfo);
     }
 
+    /// <summary>
+    /// Executes a SQL query in a new query tab. Requires an open database connection.
+    /// </summary>
+    public async Task ExecuteSqlAsync(string sql)
+    {
+        if (!IsConnected || string.IsNullOrWhiteSpace(sql)) return;
+
+        AddNewQueryTab();
+        if (SelectedTab is null) return;
+
+        SelectedTab.SqlText = sql;
+        await SelectedTab.ExecuteQueryCommand.ExecuteAsync(null);
+    }
+
     private async Task ConnectDatabaseAsync(ConnectionInfo connectionInfo)
     {
         try
