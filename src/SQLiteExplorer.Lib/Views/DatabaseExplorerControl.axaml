@@ -124,11 +124,13 @@
                     <TabControl.ContentTemplate>
                         <DataTemplate DataType="vm:QueryTabViewModel">
                             <Grid RowDefinitions="*,Auto,*">
-                                <Border Grid.Row="0" Margin="8,8,8,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" Background="White">
+                                <Border Grid.Row="0" Margin="8,8,8,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1">
                                     <AvaloniaEdit:TextEditor ShowLineNumbers="True"
                                                              FontFamily="Consolas, Courier New"
                                                              FontSize="14"
                                                              SyntaxHighlighting="SQL"
+                                                             Background="#1E1E1E"
+                                                             Foreground="#D4D4D4"
                                                              behaviors:SqlCompletionBehavior.Provider="{Binding $parent[views:DatabaseExplorerControl].((vm:MainWindowViewModel)DataContext).CompletionProvider}">
                                         <i:Interaction.Behaviors>
                                             <behaviors:DocumentTextBindingBehavior Text="{ReflectionBinding SqlText, Mode=TwoWay}"/>
