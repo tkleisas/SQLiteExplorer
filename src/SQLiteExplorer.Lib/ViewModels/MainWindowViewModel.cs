@@ -10,11 +10,11 @@ using Avalonia.Data.Converters;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SQLiteExplorer.Completion;
-using SQLiteExplorer.Models;
-using SQLiteExplorer.Services;
+using SQLiteExplorer.Lib.Completion;
+using SQLiteExplorer.Lib.Models;
+using SQLiteExplorer.Lib.Services;
 
-namespace SQLiteExplorer.ViewModels;
+namespace SQLiteExplorer.Lib.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
@@ -135,10 +135,10 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var dialog = new Views.PostgresConnectionDialog();
         
-        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop 
-            && desktop.MainWindow != null)
+        var window = GetMainWindow();
+        if (window != null)
         {
-            await dialog.ShowDialog(desktop.MainWindow);
+            await dialog.ShowDialog(window);
         }
 
         if (dialog.ConnectionInfo != null)
@@ -302,14 +302,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void ShowAbout()
     {
-        var aboutWindow = new Views.AboutWindow();
-        
-        if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop 
-            && desktop.MainWindow != null)
-        {
-            aboutWindow.ShowDialog(desktop.MainWindow);
-        }
+        // ShowAbout is app-specific and will be handled by the host application.
+        // This raises the ShowAboutRequested event for the host to handle.
+        ShowAboutRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raised when the ViewModel requests the About dialog to be shown.
+    /// The host application should subscribe to this event and show its own About window.
+    /// </summary>
+    public event EventHandler? ShowAboutRequested;
 
     [RelayCommand]
     private void ShowSqliteCheatsheet()
@@ -346,6 +348,13 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         return Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
             ? desktop.MainWindow?.StorageProvider
+            : null;
+    }
+
+    private static Window? GetMainWindow()
+    {
+        return Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow
             : null;
     }
 }

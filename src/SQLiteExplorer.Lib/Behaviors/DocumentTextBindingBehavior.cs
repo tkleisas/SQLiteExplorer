@@ -3,7 +3,7 @@ using Avalonia;
 using Avalonia.Xaml.Interactivity;
 using AvaloniaEdit;
 
-namespace SQLiteExplorer.Behaviors;
+namespace SQLiteExplorer.Lib.Behaviors;
 
 public class DocumentTextBindingBehavior : Behavior<TextEditor>
 {

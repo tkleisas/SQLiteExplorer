@@ -1,9 +1,7 @@
-using System;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using SQLiteExplorer.ViewModels;
+using SQLiteExplorer.Lib.ViewModels;
 
 namespace SQLiteExplorer.Views;
 
@@ -13,6 +11,22 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    protected override void OnDataContextChanged(System.EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.ShowAboutRequested += OnShowAboutRequested;
+        }
+    }
+
+    private void OnShowAboutRequested(object? sender, System.EventArgs e)
+    {
+        var aboutWindow = new AboutWindow();
+        aboutWindow.ShowDialog(this);
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)

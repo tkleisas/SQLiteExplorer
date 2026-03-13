@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace SQLiteExplorer.ViewModels;
+namespace SQLiteExplorer.Lib.ViewModels;
 
 public partial class CheatsheetViewModel : ObservableObject
 {

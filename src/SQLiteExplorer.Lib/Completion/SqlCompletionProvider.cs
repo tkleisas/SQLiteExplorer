@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AvaloniaEdit.CodeCompletion;
 
-namespace SQLiteExplorer.Completion;
+namespace SQLiteExplorer.Lib.Completion;
 
 public class SqlCompletionProvider
 {

@@ -1,4 +1,4 @@
-namespace SQLiteExplorer.Models;
+namespace SQLiteExplorer.Lib.Models;
 
 public class ColumnInfo
 {

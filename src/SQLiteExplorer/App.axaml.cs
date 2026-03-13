@@ -4,7 +4,7 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
-using SQLiteExplorer.ViewModels;
+using SQLiteExplorer.Lib.ViewModels;
 using SQLiteExplorer.Views;
 
 namespace SQLiteExplorer;

@@ -12,10 +12,10 @@ using AvaloniaVirtualDataGrid.Controls;
 using AvaloniaVirtualDataGrid.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SQLiteExplorer.Models;
-using SQLiteExplorer.Services;
+using SQLiteExplorer.Lib.Models;
+using SQLiteExplorer.Lib.Services;
 
-namespace SQLiteExplorer.ViewModels;
+namespace SQLiteExplorer.Lib.ViewModels;
 
 public partial class QueryTabViewModel : ViewModelBase
 {

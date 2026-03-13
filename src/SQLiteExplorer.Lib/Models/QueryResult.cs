@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SQLiteExplorer.Models;
+namespace SQLiteExplorer.Lib.Models;
 
 public class QueryResult
 {

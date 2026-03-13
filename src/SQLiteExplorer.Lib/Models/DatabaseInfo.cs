@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace SQLiteExplorer.Models;
+namespace SQLiteExplorer.Lib.Models;
 
 public class DatabaseInfo
 {

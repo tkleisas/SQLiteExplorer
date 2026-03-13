@@ -1,8 +1,8 @@
 using System;
 using System.Threading.Tasks;
-using SQLiteExplorer.Models;
+using SQLiteExplorer.Lib.Models;
 
-namespace SQLiteExplorer.Services;
+namespace SQLiteExplorer.Lib.Services;
 
 public interface IDatabaseService : IDisposable
 {

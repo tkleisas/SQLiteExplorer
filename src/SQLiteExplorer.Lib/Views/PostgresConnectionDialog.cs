@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using SQLiteExplorer.Models;
+using SQLiteExplorer.Lib.Models;
 
-namespace SQLiteExplorer.Views;
+namespace SQLiteExplorer.Lib.Views;
 
 public partial class PostgresConnectionDialog : Window
 {

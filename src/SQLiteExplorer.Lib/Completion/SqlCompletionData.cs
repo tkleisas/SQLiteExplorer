@@ -4,7 +4,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 
-namespace SQLiteExplorer.Completion;
+namespace SQLiteExplorer.Lib.Completion;
 
 public class SqlCompletionData : ICompletionData
 {

@@ -3,7 +3,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace SQLiteExplorer.Converters;
+namespace SQLiteExplorer.Lib.Converters;
 
 public class HasErrorToColorConverter : IValueConverter
 {

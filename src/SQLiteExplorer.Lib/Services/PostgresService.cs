@@ -1,39 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Data.Sqlite;
-using SQLiteExplorer.Models;
+using Npgsql;
+using SQLiteExplorer.Lib.Models;
 
-namespace SQLiteExplorer.Services;
+namespace SQLiteExplorer.Lib.Services;
 
-public class SqliteService : IDatabaseService
+public class PostgresService : IDatabaseService
 {
-    private SqliteConnection? _connection;
-    private SqliteConnectionInfo? _connectionInfo;
+    private NpgsqlConnection? _connection;
+    private PostgresConnectionInfo? _connectionInfo;
 
     public ConnectionInfo? ConnectionInfo => _connectionInfo;
     public bool IsConnected => _connection != null && _connection.State == ConnectionState.Open;
-    public DatabaseType DatabaseType => DatabaseType.SQLite;
+    public DatabaseType DatabaseType => DatabaseType.PostgreSQL;
 
     public async Task<bool> ConnectAsync(ConnectionInfo connectionInfo)
     {
-        if (connectionInfo is not SqliteConnectionInfo sqliteInfo)
+        if (connectionInfo is not PostgresConnectionInfo postgresInfo)
             throw new ArgumentException("Invalid connection info type", nameof(connectionInfo));
 
         Disconnect();
 
-        var builder = new SqliteConnectionStringBuilder
-        {
-            DataSource = sqliteInfo.FilePath,
-            Mode = SqliteOpenMode.ReadWriteCreate
-        };
-
-        _connection = new SqliteConnection(builder.ConnectionString);
+        _connection = new NpgsqlConnection(postgresInfo.ConnectionString);
         await _connection.OpenAsync();
-        _connectionInfo = sqliteInfo;
+        _connectionInfo = postgresInfo;
         return true;
     }
 
@@ -55,27 +48,38 @@ public class SqliteService : IDatabaseService
 
         var info = new DatabaseInfo
         {
-            Path = _connectionInfo.FilePath,
-            Name = Path.GetFileName(_connectionInfo.FilePath)
+            Path = _connectionInfo.Host,
+            Name = _connectionInfo.Database
         };
 
         var command = _connection!.CreateCommand();
-        command.CommandText = "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY type, name";
+        command.CommandText = @"
+            SELECT table_name, table_type 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_type IN ('BASE TABLE', 'VIEW')
+            ORDER BY table_type, table_name";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        using (command)
         {
-            var tableName = reader.GetString(0);
-            var tableType = reader.GetString(1);
-
-            var table = new TableInfo
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                Name = tableName,
-                Type = tableType
-            };
+                var tableName = reader.GetString(0);
+                var tableType = reader.GetString(1) == "VIEW" ? "view" : "table";
 
+                var table = new TableInfo
+                {
+                    Name = tableName,
+                    Type = tableType
+                };
+
+                info.Tables.Add(table);
+            }
+        }
+
+        foreach (var table in info.Tables)
+        {
             await LoadColumnsAsync(table);
-            info.Tables.Add(table);
         }
 
         return info;
@@ -84,18 +88,58 @@ public class SqliteService : IDatabaseService
     private async Task LoadColumnsAsync(TableInfo table)
     {
         var command = _connection!.CreateCommand();
-        command.CommandText = $"PRAGMA table_info(\"{table.Name.Replace("\"", "\"\"")}\")";
+        command.CommandText = @"
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = @tableName
+            ORDER BY ordinal_position";
 
-        using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        command.Parameters.AddWithValue("tableName", table.Name);
+
+        using (command)
         {
-            table.Columns.Add(new ColumnInfo
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                Name = reader.GetString(1),
-                Type = reader.GetString(2),
-                NotNull = reader.GetInt32(3) == 1,
-                IsPrimaryKey = reader.GetInt32(5) == 1
-            });
+                table.Columns.Add(new ColumnInfo
+                {
+                    Name = reader.GetString(0),
+                    Type = reader.GetString(1),
+                    NotNull = reader.GetString(2) == "NO",
+                    IsPrimaryKey = false
+                });
+            }
+        }
+
+        await LoadPrimaryKeysAsync(table);
+    }
+
+    private async Task LoadPrimaryKeysAsync(TableInfo table)
+    {
+        var command = _connection!.CreateCommand();
+        command.CommandText = @"
+            SELECT kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+                ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_schema = 'public' 
+                AND tc.table_name = @tableName
+                AND tc.constraint_type = 'PRIMARY KEY'";
+
+        command.Parameters.AddWithValue("tableName", table.Name);
+
+        using (command)
+        {
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var columnName = reader.GetString(0);
+                var column = table.Columns.Find(c => c.Name == columnName);
+                if (column != null)
+                {
+                    column.IsPrimaryKey = true;
+                }
+            }
         }
     }
 
@@ -136,7 +180,7 @@ public class SqliteService : IDatabaseService
         {
             var c = sql[i];
 
-            if (!inString && (c == '\'' || c == '"'))
+            if (!inString && c == '\'')
             {
                 inString = true;
                 stringChar = c;

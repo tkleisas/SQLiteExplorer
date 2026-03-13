@@ -1,8 +1,7 @@
 using System;
-using SQLiteExplorer.Models;
-using SQLiteExplorer.Services;
+using SQLiteExplorer.Lib.Models;
 
-namespace SQLiteExplorer.Services;
+namespace SQLiteExplorer.Lib.Services;
 
 public static class DatabaseServiceFactory
 {

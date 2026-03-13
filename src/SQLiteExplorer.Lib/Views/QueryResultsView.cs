@@ -3,9 +3,9 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using AvaloniaVirtualDataGrid.Columns;
 using AvaloniaVirtualDataGrid.Controls;
-using SQLiteExplorer.ViewModels;
+using SQLiteExplorer.Lib.ViewModels;
 
-namespace SQLiteExplorer.Views;
+namespace SQLiteExplorer.Lib.Views;
 
 public partial class QueryResultsView : UserControl
 {

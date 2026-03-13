@@ -5,9 +5,9 @@ using Avalonia;
 using Avalonia.Input;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
-using SQLiteExplorer.Completion;
+using SQLiteExplorer.Lib.Completion;
 
-namespace SQLiteExplorer.Behaviors;
+namespace SQLiteExplorer.Lib.Behaviors;
 
 public class SqlCompletionBehavior
 {
