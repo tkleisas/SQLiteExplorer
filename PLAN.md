@@ -1,30 +1,35 @@
-# SQLite Explorer - Architecture Plan
+# Database Explorer - Architecture Plan
 
-A desktop tool for inspecting and creating SQLite databases, inspired by SQL Server Management Studio.
+A cross-platform desktop tool for inspecting and querying SQLite, PostgreSQL, SQL Server
+and Oracle databases, inspired by SQL Server Management Studio.
 
 ## Project Structure
 ```
 SQLiteExplorer/
 ├── SQLiteExplorer.sln
 ├── src/
-│   └── SQLiteExplorer/                          # Main application
-│       ├── App.axaml                           # Application entry
-│       ├── App.axaml.cs
+│   ├── SQLiteExplorer/                          # Desktop app shell
+│   │   ├── App.axaml(.cs)                       # Application entry
+│   │   └── Views/                               # MainWindow, AboutWindow
+│   └── SQLiteExplorer.Lib/                      # Reusable library
 │       ├── ViewModels/
-│       │   ├── MainWindowViewModel.cs          # Main window logic + tree
-│       │   └── QueryTabViewModel.cs            # Query tab + results
-│       ├── Views/
-│       │   └── MainWindow.axaml(.cs)           # Main window layout
-│       ├── Models/
-│       │   ├── DatabaseInfo.cs
-│       │   ├── TableInfo.cs
-│       │   ├── ColumnInfo.cs
-│       │   └── QueryResult.cs
+│       │   ├── MainWindowViewModel.cs           # Main window logic + tree
+│       │   └── QueryTabViewModel.cs             # Query tab + results
+│       ├── Views/                               # Controls + connection dialogs
+│       ├── Models/                              # ConnectionInfo (+ per-dialect), TableInfo, ...
 │       └── Services/
-│           ├── ISqliteService.cs               # Abstraction for SQLite ops
-│           └── SqliteService.cs                # Implementation
-└── lib/
-    └── AvaloniaVirtualDataGrid/                # Git submodule
+│           ├── IDatabaseService.cs              # Provider abstraction (dialect-aware)
+│           ├── SqliteService.cs                 # SQLite
+│           ├── PostgresService.cs               # PostgreSQL
+│           ├── SqlServerService.cs              # SQL Server
+│           ├── OracleService.cs                 # Oracle (11g R2+)
+│           ├── SqlStatementSplitter.cs          # Shared statement splitter
+│           └── DatabaseServiceFactory.cs        # Provider factory
+├── tests/
+│   └── SQLiteExplorer.Lib.Tests/                # xUnit tests
+├── lib/
+│   └── AvaloniaVirtualDataGrid/                # Git submodule
+└── .github/workflows/                          # ci.yml, release.yml
 ```
 
 ## UI Layout
@@ -50,11 +55,15 @@ SQLiteExplorer/
 ## Key Packages
 | Package | Purpose |
 |---------|---------|
-| `Avalonia` | UI framework |
+| `Avalonia` (12) | UI framework |
 | `Avalonia.AvaloniaEdit` | SQL editor with syntax highlighting |
 | `CommunityToolkit.Mvvm` | MVVM helpers |
 | `Microsoft.Data.Sqlite` | SQLite ADO.NET provider |
+| `Npgsql` | PostgreSQL ADO.NET provider |
+| `Microsoft.Data.SqlClient` | SQL Server ADO.NET provider |
+| `Oracle.ManagedDataAccess.Core` | Oracle ADO.NET provider (ODP.NET Core 19c line, DB 11g R2+) |
 | `AvaloniaVirtualDataGrid` | Virtualized data grid |
+| `xunit` | Unit testing |
 
 ## Implementation Status
 
@@ -87,6 +96,15 @@ SQLiteExplorer/
 - [x] Status bar with connection status
 - [ ] Error styling in status bar
 
+### Phase 6: Multi-Database, Tests & CI ✅
+- [x] Extract reusable `SQLiteExplorer.Lib` class library
+- [x] Provider abstraction (`IDatabaseService`) with dialect-aware quoting/describe
+- [x] PostgreSQL, SQL Server and Oracle providers (Oracle 11g R2+)
+- [x] Schema-aware object tree (Database > Schema > Table > Column) for server databases
+- [x] Upgrade to Avalonia 12
+- [x] xUnit test project (`tests/SQLiteExplorer.Lib.Tests`)
+- [x] GitHub Actions: CI (build + test) and tag-triggered release builds
+
 ## Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|
@@ -116,7 +134,9 @@ SQLiteExplorer/
 
 ## Technical Decisions
 - **.NET Version**: .NET 10
+- **UI Framework**: Avalonia 12
 - **MVVM Framework**: CommunityToolkit.Mvvm
-- **SQL Editor**: TextBox (AvaloniaEdit pending)
+- **SQL Editor**: AvaloniaEdit (SQL syntax highlighting)
 - **Data Editing**: Read-only
 - **Data Grid**: AvaloniaVirtualDataGrid
+- **Databases**: SQLite, PostgreSQL, SQL Server, Oracle (provider-based)
