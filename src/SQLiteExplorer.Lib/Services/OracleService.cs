@@ -3,40 +3,59 @@ using System.Collections.Generic;
 using System.Data;
 using System.Text;
 using System.Threading.Tasks;
-using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 using SQLiteExplorer.Lib.Models;
 
 namespace SQLiteExplorer.Lib.Services;
 
-public class PostgresService : IDatabaseService
+public class OracleService : IDatabaseService
 {
-    private NpgsqlConnection? _connection;
-    private PostgresConnectionInfo? _connectionInfo;
+    private OracleConnection? _connection;
+    private OracleConnectionInfo? _connectionInfo;
 
     public ConnectionInfo? ConnectionInfo => _connectionInfo;
     public bool IsConnected => _connection != null && _connection.State == ConnectionState.Open;
-    public DatabaseType DatabaseType => DatabaseType.PostgreSQL;
+    public DatabaseType DatabaseType => DatabaseType.Oracle;
     public bool UsesSchemas => true;
+
+    // Oracle-maintained / internal accounts to hide from the schema tree. Filtered via
+    // an explicit list (rather than ALL_USERS.ORACLE_MAINTAINED, which only exists on
+    // 12.1+) so introspection works on Oracle Database 11g Release 2 and later.
+    private static readonly string[] SystemSchemas =
+    {
+        "SYS", "SYSTEM", "OUTLN", "DBSNMP", "APPQOSSYS", "WMSYS", "XDB", "ANONYMOUS",
+        "CTXSYS", "MDSYS", "ORDSYS", "ORDDATA", "ORDPLUGINS", "SI_INFORMTN_SCHEMA",
+        "OLAPSYS", "MDDATA", "SPATIAL_WFS_ADMIN_USR", "SPATIAL_CSW_ADMIN_USR",
+        "EXFSYS", "LBACSYS", "DVSYS", "DVF", "AUDSYS", "GSMADMIN_INTERNAL",
+        "GSMCATUSER", "GSMUSER", "SYSBACKUP", "SYSDG", "SYSKM", "SYSRAC", "DIP",
+        "ORACLE_OCM", "REMOTE_SCHEDULER_AGENT", "XS$NULL", "OJVMSYS", "GGSYS",
+        "SYS$UMF", "DBSFWUSER", "OWBSYS", "OWBSYS_AUDIT"
+    };
+
+    private static readonly string SystemSchemaList =
+        string.Join(", ", Array.ConvertAll(SystemSchemas, s => $"'{s}'"));
 
     public string QuoteIdentifier(string? schema, string name) =>
         string.IsNullOrEmpty(schema)
             ? $"\"{name.Replace("\"", "\"\"")}\""
             : $"\"{schema.Replace("\"", "\"\"")}\".\"{name.Replace("\"", "\"\"")}\"";
 
+    // No trailing semicolon: a plain (non-PL/SQL) statement sent to OracleCommand
+    // must not be terminated with ';' (ORA-00911).
     public string GetDescribeSql(string? schema, string name) =>
-        "SELECT column_name, data_type, is_nullable FROM information_schema.columns " +
-        $"WHERE table_schema = '{schema}' AND table_name = '{name}' ORDER BY ordinal_position;";
+        "SELECT COLUMN_NAME, DATA_TYPE, NULLABLE FROM ALL_TAB_COLUMNS " +
+        $"WHERE OWNER = '{schema}' AND TABLE_NAME = '{name}' ORDER BY COLUMN_ID";
 
     public async Task<bool> ConnectAsync(ConnectionInfo connectionInfo)
     {
-        if (connectionInfo is not PostgresConnectionInfo postgresInfo)
+        if (connectionInfo is not OracleConnectionInfo oracleInfo)
             throw new ArgumentException("Invalid connection info type", nameof(connectionInfo));
 
         Disconnect();
 
-        _connection = new NpgsqlConnection(postgresInfo.ConnectionString);
+        _connection = new OracleConnection(oracleInfo.ConnectionString);
         await _connection.OpenAsync();
-        _connectionInfo = postgresInfo;
+        _connectionInfo = oracleInfo;
         return true;
     }
 
@@ -59,31 +78,38 @@ public class PostgresService : IDatabaseService
         var info = new DatabaseInfo
         {
             Path = _connectionInfo.Host,
-            Name = _connectionInfo.Database
+            Name = _connectionInfo.DisplayName
         };
 
         var command = _connection!.CreateCommand();
-        command.CommandText = @"
-            SELECT table_schema, table_name, table_type
-            FROM information_schema.tables
-            WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-              AND table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY table_schema, table_name";
+        command.BindByName = true;
+        // Show user schemas only, excluding Oracle-maintained accounts. Uses a static
+        // exclusion list plus APEX/FLOWS prefixes so it runs on 11g (which lacks
+        // ALL_USERS.ORACLE_MAINTAINED).
+        command.CommandText = $@"
+            SELECT OWNER, TABLE_NAME, 'table' AS OBJ_TYPE
+            FROM ALL_TABLES
+            WHERE OWNER NOT IN ({SystemSchemaList})
+              AND OWNER NOT LIKE 'APEX\_%' ESCAPE '\'
+              AND OWNER NOT LIKE 'FLOWS\_%' ESCAPE '\'
+            UNION ALL
+            SELECT OWNER, VIEW_NAME, 'view' AS OBJ_TYPE
+            FROM ALL_VIEWS
+            WHERE OWNER NOT IN ({SystemSchemaList})
+              AND OWNER NOT LIKE 'APEX\_%' ESCAPE '\'
+              AND OWNER NOT LIKE 'FLOWS\_%' ESCAPE '\'
+            ORDER BY 1, 2";
 
         using (command)
         {
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                var schemaName = reader.GetString(0);
-                var tableName = reader.GetString(1);
-                var tableType = reader.GetString(2) == "VIEW" ? "view" : "table";
-
                 var table = new TableInfo
                 {
-                    Schema = schemaName,
-                    Name = tableName,
-                    Type = tableType
+                    Schema = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    Type = reader.GetString(2)
                 };
 
                 info.Tables.Add(table);
@@ -101,14 +127,15 @@ public class PostgresService : IDatabaseService
     private async Task LoadColumnsAsync(TableInfo table)
     {
         var command = _connection!.CreateCommand();
+        command.BindByName = true;
         command.CommandText = @"
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = @schemaName AND table_name = @tableName
-            ORDER BY ordinal_position";
+            SELECT COLUMN_NAME, DATA_TYPE, NULLABLE
+            FROM ALL_TAB_COLUMNS
+            WHERE OWNER = :owner AND TABLE_NAME = :tableName
+            ORDER BY COLUMN_ID";
 
-        command.Parameters.AddWithValue("schemaName", table.Schema);
-        command.Parameters.AddWithValue("tableName", table.Name);
+        command.Parameters.Add("owner", table.Schema);
+        command.Parameters.Add("tableName", table.Name);
 
         using (command)
         {
@@ -119,7 +146,7 @@ public class PostgresService : IDatabaseService
                 {
                     Name = reader.GetString(0),
                     Type = reader.GetString(1),
-                    NotNull = reader.GetString(2) == "NO",
+                    NotNull = reader.GetString(2) == "N",
                     IsPrimaryKey = false
                 });
             }
@@ -131,17 +158,19 @@ public class PostgresService : IDatabaseService
     private async Task LoadPrimaryKeysAsync(TableInfo table)
     {
         var command = _connection!.CreateCommand();
+        command.BindByName = true;
         command.CommandText = @"
-            SELECT kcu.column_name
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu 
-                ON tc.constraint_name = kcu.constraint_name
-            WHERE tc.table_schema = @schemaName
-                AND tc.table_name = @tableName
-                AND tc.constraint_type = 'PRIMARY KEY'";
+            SELECT cc.COLUMN_NAME
+            FROM ALL_CONSTRAINTS c
+            JOIN ALL_CONS_COLUMNS cc
+                ON c.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+                AND c.OWNER = cc.OWNER
+            WHERE c.CONSTRAINT_TYPE = 'P'
+                AND c.OWNER = :owner
+                AND c.TABLE_NAME = :tableName";
 
-        command.Parameters.AddWithValue("schemaName", table.Schema);
-        command.Parameters.AddWithValue("tableName", table.Name);
+        command.Parameters.Add("owner", table.Schema);
+        command.Parameters.Add("tableName", table.Name);
 
         using (command)
         {

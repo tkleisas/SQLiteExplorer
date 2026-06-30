@@ -9,5 +9,7 @@ public abstract class ConnectionInfo
 public enum DatabaseType
 {
     SQLite,
-    PostgreSQL
+    PostgreSQL,
+    SqlServer,
+    Oracle
 }

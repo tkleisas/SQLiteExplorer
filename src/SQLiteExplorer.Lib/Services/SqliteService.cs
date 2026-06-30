@@ -17,6 +17,13 @@ public class SqliteService : IDatabaseService
     public ConnectionInfo? ConnectionInfo => _connectionInfo;
     public bool IsConnected => _connection != null && _connection.State == ConnectionState.Open;
     public DatabaseType DatabaseType => DatabaseType.SQLite;
+    public bool UsesSchemas => false;
+
+    public string QuoteIdentifier(string? schema, string name) =>
+        $"\"{name.Replace("\"", "\"\"")}\"";
+
+    public string GetDescribeSql(string? schema, string name) =>
+        $"PRAGMA table_info({QuoteIdentifier(schema, name)})";
 
     public async Task<bool> ConnectAsync(ConnectionInfo connectionInfo)
     {
