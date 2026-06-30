@@ -17,6 +17,13 @@ public class SqliteService : IDatabaseService
     public ConnectionInfo? ConnectionInfo => _connectionInfo;
     public bool IsConnected => _connection != null && _connection.State == ConnectionState.Open;
     public DatabaseType DatabaseType => DatabaseType.SQLite;
+    public bool UsesSchemas => false;
+
+    public string QuoteIdentifier(string? schema, string name) =>
+        $"\"{name.Replace("\"", "\"\"")}\"";
+
+    public string GetDescribeSql(string? schema, string name) =>
+        $"PRAGMA table_info({QuoteIdentifier(schema, name)})";
 
     public async Task<bool> ConnectAsync(ConnectionInfo connectionInfo)
     {
@@ -107,7 +114,7 @@ public class SqliteService : IDatabaseService
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
         var multiResult = new MultiQueryResult();
 
-        var statements = SplitStatements(sql);
+        var statements = SqlStatementSplitter.Split(sql, treatDoubleQuoteAsString: true);
 
         for (var i = 0; i < statements.Count; i++)
         {
@@ -123,71 +130,6 @@ public class SqliteService : IDatabaseService
         multiResult.TotalExecutionTimeMs = totalSw.ElapsedMilliseconds;
 
         return multiResult;
-    }
-
-    private static List<string> SplitStatements(string sql)
-    {
-        var statements = new List<string>();
-        var current = new StringBuilder();
-        var inString = false;
-        var stringChar = '\0';
-
-        for (var i = 0; i < sql.Length; i++)
-        {
-            var c = sql[i];
-
-            if (!inString && (c == '\'' || c == '"'))
-            {
-                inString = true;
-                stringChar = c;
-                current.Append(c);
-            }
-            else if (inString && c == stringChar)
-            {
-                if (i + 1 < sql.Length && sql[i + 1] == stringChar)
-                {
-                    current.Append(c);
-                    current.Append(c);
-                    i++;
-                }
-                else
-                {
-                    inString = false;
-                    current.Append(c);
-                }
-            }
-            else if (!inString && c == ';')
-            {
-                var stmt = current.ToString().Trim();
-                if (!string.IsNullOrWhiteSpace(stmt))
-                {
-                    statements.Add(stmt);
-                }
-                current.Clear();
-            }
-            else if (!inString && c == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
-            {
-                while (i < sql.Length && sql[i] != '\n') i++;
-            }
-            else if (!inString && c == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
-            {
-                i += 2;
-                while (i < sql.Length - 1 && !(sql[i] == '*' && sql[i + 1] == '/')) i++;
-                i++;
-            }
-            else
-            {
-                current.Append(c);
-            }
-        }
-
-        var lastStmt = current.ToString().Trim();
-        if (!string.IsNullOrWhiteSpace(lastStmt))
-        {
-            statements.Add(lastStmt);
-        }
-
-        return statements;
     }
 
     private async Task<QueryResult> ExecuteStatementAsync(string sql)

@@ -11,6 +11,8 @@ public static class DatabaseServiceFactory
         {
             DatabaseType.SQLite => new SqliteService(),
             DatabaseType.PostgreSQL => new PostgresService(),
+            DatabaseType.SqlServer => new SqlServerService(),
+            DatabaseType.Oracle => new OracleService(),
             _ => throw new ArgumentException($"Unsupported database type: {databaseType}")
         };
     }

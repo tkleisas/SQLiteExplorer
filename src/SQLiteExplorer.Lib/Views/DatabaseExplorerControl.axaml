@@ -27,10 +27,14 @@
                 <MenuItem Header="_New">
                     <MenuItem Header="SQLite Database..." Command="{Binding NewSqliteDatabaseCommand}"/>
                     <MenuItem Header="PostgreSQL Database..." Command="{Binding OpenPostgresDatabaseCommand}"/>
+                    <MenuItem Header="SQL Server Database..." Command="{Binding OpenSqlServerDatabaseCommand}"/>
+                    <MenuItem Header="Oracle Database..." Command="{Binding OpenOracleDatabaseCommand}"/>
                 </MenuItem>
                 <MenuItem Header="_Open">
                     <MenuItem Header="SQLite Database..." Command="{Binding OpenSqliteDatabaseCommand}"/>
                     <MenuItem Header="PostgreSQL Database..." Command="{Binding OpenPostgresDatabaseCommand}"/>
+                    <MenuItem Header="SQL Server Database..." Command="{Binding OpenSqlServerDatabaseCommand}"/>
+                    <MenuItem Header="Oracle Database..." Command="{Binding OpenOracleDatabaseCommand}"/>
                 </MenuItem>
                 <Separator/>
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
@@ -44,6 +48,8 @@
             <MenuItem Header="_Help">
                 <MenuItem Header="SQLite _Cheatsheet" Command="{Binding ShowSqliteCheatsheetCommand}"/>
                 <MenuItem Header="PostgreSQL _Cheatsheet" Command="{Binding ShowPostgresCheatsheetCommand}"/>
+                <MenuItem Header="SQL _Server Cheatsheet" Command="{Binding ShowSqlServerCheatsheetCommand}"/>
+                <MenuItem Header="_Oracle Cheatsheet" Command="{Binding ShowOracleCheatsheetCommand}"/>
                 <Separator/>
                 <MenuItem Header="_About" Command="{Binding ShowAboutCommand}"/>
             </MenuItem>

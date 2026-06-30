@@ -147,6 +147,40 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    [RelayCommand]
+    private async Task OpenSqlServerDatabase()
+    {
+        var dialog = new Views.SqlServerConnectionDialog();
+
+        var window = GetMainWindow();
+        if (window != null)
+        {
+            await dialog.ShowDialog(window);
+        }
+
+        if (dialog.ConnectionInfo != null)
+        {
+            await ConnectDatabaseAsync(dialog.ConnectionInfo);
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenOracleDatabase()
+    {
+        var dialog = new Views.OracleConnectionDialog();
+
+        var window = GetMainWindow();
+        if (window != null)
+        {
+            await dialog.ShowDialog(window);
+        }
+
+        if (dialog.ConnectionInfo != null)
+        {
+            await ConnectDatabaseAsync(dialog.ConnectionInfo);
+        }
+    }
+
     /// <summary>
     /// Opens a SQLite database file by path without showing a file picker dialog.
     /// </summary>
@@ -202,6 +236,8 @@ public partial class MainWindowViewModel : ViewModelBase
         return CurrentDatabaseType switch
         {
             DatabaseType.PostgreSQL => "PostgreSQL Explorer",
+            DatabaseType.SqlServer => "SQL Server Explorer",
+            DatabaseType.Oracle => "Oracle Explorer",
             _ => "SQLite Explorer"
         };
     }
@@ -225,32 +261,66 @@ public partial class MainWindowViewModel : ViewModelBase
         var tableNames = new List<string>();
         var tableColumns = new Dictionary<string, List<string>>();
 
-        foreach (var table in info.Tables)
+        if (_databaseService.UsesSchemas)
         {
-            var tableNode = new DatabaseTreeNode
+            foreach (var schemaGroup in info.Tables
+                         .GroupBy(t => t.Schema)
+                         .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
             {
-                Name = table.Name,
-                NodeType = table.Type == "view" ? NodeType.View : NodeType.Table,
-                IsExpanded = false
-            };
-
-            tableNames.Add(table.Name);
-            tableColumns[table.Name] = table.Columns.Select(c => c.Name).ToList();
-
-            foreach (var column in table.Columns)
-            {
-                tableNode.Children.Add(new DatabaseTreeNode
+                var schemaNode = new DatabaseTreeNode
                 {
-                    Name = $"{column.Name} ({column.Type})",
-                    NodeType = NodeType.Column
-                });
-            }
+                    Name = schemaGroup.Key,
+                    Schema = schemaGroup.Key,
+                    NodeType = NodeType.Schema,
+                    IsExpanded = false
+                };
 
-            rootNode.Children.Add(tableNode);
+                foreach (var table in schemaGroup)
+                {
+                    schemaNode.Children.Add(BuildTableNode(table, tableNames, tableColumns));
+                }
+
+                rootNode.Children.Add(schemaNode);
+            }
+        }
+        else
+        {
+            foreach (var table in info.Tables)
+            {
+                rootNode.Children.Add(BuildTableNode(table, tableNames, tableColumns));
+            }
         }
 
         DatabaseNodes.Add(rootNode);
         CompletionProvider.UpdateSchema(tableNames, tableColumns);
+    }
+
+    private static DatabaseTreeNode BuildTableNode(
+        TableInfo table,
+        List<string> tableNames,
+        Dictionary<string, List<string>> tableColumns)
+    {
+        var tableNode = new DatabaseTreeNode
+        {
+            Name = table.Name,
+            Schema = table.Schema,
+            NodeType = table.Type == "view" ? NodeType.View : NodeType.Table,
+            IsExpanded = false
+        };
+
+        tableNames.Add(table.Name);
+        tableColumns[table.Name] = table.Columns.Select(c => c.Name).ToList();
+
+        foreach (var column in table.Columns)
+        {
+            tableNode.Children.Add(new DatabaseTreeNode
+            {
+                Name = $"{column.Name} ({column.Type})",
+                NodeType = NodeType.Column
+            });
+        }
+
+        return tableNode;
     }
 
     [RelayCommand]
@@ -266,49 +336,43 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void GenerateSelect(string tableName)
     {
-        if (SelectedTab == null)
-        {
-            AddNewQueryTab();
-        }
-        
-        if (SelectedTab != null)
-        {
-            var quotedName = CurrentDatabaseType == DatabaseType.PostgreSQL 
-                ? $"\"{tableName}\"" 
-                : tableName;
-            SelectedTab.SqlText = $"SELECT * FROM {quotedName};";
-        }
+        WriteSelectInto(null, tableName);
     }
 
     [RelayCommand]
     private void SelectTable(DatabaseTreeNode node)
     {
         if (node == null || !node.IsTableOrView) return;
-        GenerateSelect(node.Name);
+        WriteSelectInto(node.Schema, node.Name);
+    }
+
+    private void WriteSelectInto(string? schema, string tableName)
+    {
+        if (SelectedTab == null)
+        {
+            AddNewQueryTab();
+        }
+
+        if (SelectedTab != null)
+        {
+            var quotedName = _databaseService?.QuoteIdentifier(schema, tableName) ?? tableName;
+            SelectedTab.SqlText = $"SELECT * FROM {quotedName};";
+        }
     }
 
     [RelayCommand]
     private void DescribeTable(DatabaseTreeNode node)
     {
         if (node == null || !node.IsTableOrView) return;
-        
+
         if (SelectedTab == null)
         {
             AddNewQueryTab();
         }
-        
-        if (SelectedTab != null)
+
+        if (SelectedTab != null && _databaseService != null)
         {
-            var quotedName = CurrentDatabaseType == DatabaseType.PostgreSQL 
-                ? $"\"{node.Name}\"" 
-                : node.Name;
-            
-            var describeSql = CurrentDatabaseType switch
-            {
-                DatabaseType.PostgreSQL => $"SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '{node.Name}';",
-                _ => $"PRAGMA table_info({quotedName});"
-            };
-            SelectedTab.SqlText = describeSql;
+            SelectedTab.SqlText = _databaseService.GetDescribeSql(node.Schema, node.Name);
         }
     }
 
@@ -353,6 +417,22 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void ShowSqlServerCheatsheet()
+    {
+        Cheatsheet.Title = "SQL Server Cheatsheet";
+        Cheatsheet.Content = Cheatsheets.SqlServer;
+        Cheatsheet.IsVisible = true;
+    }
+
+    [RelayCommand]
+    private void ShowOracleCheatsheet()
+    {
+        Cheatsheet.Title = "Oracle Cheatsheet";
+        Cheatsheet.Content = Cheatsheets.Oracle;
+        Cheatsheet.IsVisible = true;
+    }
+
+    [RelayCommand]
     private void CloseCheatsheet()
     {
         Cheatsheet.IsVisible = false;
@@ -385,6 +465,7 @@ public partial class MainWindowViewModel : ViewModelBase
 public enum NodeType
 {
     Database,
+    Schema,
     Table,
     View,
     Column
@@ -402,6 +483,9 @@ public partial class DatabaseTreeNode : ObservableObject
     private string _path = string.Empty;
 
     [ObservableProperty]
+    private string _schema = string.Empty;
+
+    [ObservableProperty]
     private ObservableCollection<DatabaseTreeNode> _children = new();
 
     [ObservableProperty]
@@ -410,6 +494,7 @@ public partial class DatabaseTreeNode : ObservableObject
     public string Icon => NodeType switch
     {
         NodeType.Database => "🗄️",
+        NodeType.Schema => "📁",
         NodeType.Table => "📋",
         NodeType.View => "👁️",
         NodeType.Column => "📝",

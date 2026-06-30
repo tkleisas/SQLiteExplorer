@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive   # pulls lib/AvaloniaVirtualDataGrid
+          fetch-depth: 0          # full history so GitInfo can resolve the commit
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore SQLiteExplorer.sln
+
+      - name: Build
+        run: dotnet build SQLiteExplorer.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test SQLiteExplorer.sln -c Release --no-build --verbosity normal

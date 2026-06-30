@@ -3,40 +3,40 @@ using System.Collections.Generic;
 using System.Data;
 using System.Text;
 using System.Threading.Tasks;
-using Npgsql;
+using Microsoft.Data.SqlClient;
 using SQLiteExplorer.Lib.Models;
 
 namespace SQLiteExplorer.Lib.Services;
 
-public class PostgresService : IDatabaseService
+public class SqlServerService : IDatabaseService
 {
-    private NpgsqlConnection? _connection;
-    private PostgresConnectionInfo? _connectionInfo;
+    private SqlConnection? _connection;
+    private SqlServerConnectionInfo? _connectionInfo;
 
     public ConnectionInfo? ConnectionInfo => _connectionInfo;
     public bool IsConnected => _connection != null && _connection.State == ConnectionState.Open;
-    public DatabaseType DatabaseType => DatabaseType.PostgreSQL;
+    public DatabaseType DatabaseType => DatabaseType.SqlServer;
     public bool UsesSchemas => true;
 
     public string QuoteIdentifier(string? schema, string name) =>
         string.IsNullOrEmpty(schema)
-            ? $"\"{name.Replace("\"", "\"\"")}\""
-            : $"\"{schema.Replace("\"", "\"\"")}\".\"{name.Replace("\"", "\"\"")}\"";
+            ? $"[{name.Replace("]", "]]")}]"
+            : $"[{schema.Replace("]", "]]")}].[{name.Replace("]", "]]")}]";
 
     public string GetDescribeSql(string? schema, string name) =>
-        "SELECT column_name, data_type, is_nullable FROM information_schema.columns " +
-        $"WHERE table_schema = '{schema}' AND table_name = '{name}' ORDER BY ordinal_position;";
+        "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS " +
+        $"WHERE TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{name}' ORDER BY ORDINAL_POSITION;";
 
     public async Task<bool> ConnectAsync(ConnectionInfo connectionInfo)
     {
-        if (connectionInfo is not PostgresConnectionInfo postgresInfo)
+        if (connectionInfo is not SqlServerConnectionInfo sqlInfo)
             throw new ArgumentException("Invalid connection info type", nameof(connectionInfo));
 
         Disconnect();
 
-        _connection = new NpgsqlConnection(postgresInfo.ConnectionString);
+        _connection = new SqlConnection(sqlInfo.ConnectionString);
         await _connection.OpenAsync();
-        _connectionInfo = postgresInfo;
+        _connectionInfo = sqlInfo;
         return true;
     }
 
@@ -58,32 +58,27 @@ public class PostgresService : IDatabaseService
 
         var info = new DatabaseInfo
         {
-            Path = _connectionInfo.Host,
+            Path = _connectionInfo.Server,
             Name = _connectionInfo.Database
         };
 
         var command = _connection!.CreateCommand();
         command.CommandText = @"
-            SELECT table_schema, table_name, table_type
-            FROM information_schema.tables
-            WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-              AND table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY table_schema, table_name";
+            SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+            ORDER BY TABLE_SCHEMA, TABLE_NAME";
 
         using (command)
         {
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                var schemaName = reader.GetString(0);
-                var tableName = reader.GetString(1);
-                var tableType = reader.GetString(2) == "VIEW" ? "view" : "table";
-
                 var table = new TableInfo
                 {
-                    Schema = schemaName,
-                    Name = tableName,
-                    Type = tableType
+                    Schema = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    Type = reader.GetString(2) == "VIEW" ? "view" : "table"
                 };
 
                 info.Tables.Add(table);
@@ -102,13 +97,13 @@ public class PostgresService : IDatabaseService
     {
         var command = _connection!.CreateCommand();
         command.CommandText = @"
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = @schemaName AND table_name = @tableName
-            ORDER BY ordinal_position";
+            SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = @schemaName AND TABLE_NAME = @tableName
+            ORDER BY ORDINAL_POSITION";
 
-        command.Parameters.AddWithValue("schemaName", table.Schema);
-        command.Parameters.AddWithValue("tableName", table.Name);
+        command.Parameters.AddWithValue("@schemaName", table.Schema);
+        command.Parameters.AddWithValue("@tableName", table.Name);
 
         using (command)
         {
@@ -132,16 +127,17 @@ public class PostgresService : IDatabaseService
     {
         var command = _connection!.CreateCommand();
         command.CommandText = @"
-            SELECT kcu.column_name
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu 
-                ON tc.constraint_name = kcu.constraint_name
-            WHERE tc.table_schema = @schemaName
-                AND tc.table_name = @tableName
-                AND tc.constraint_type = 'PRIMARY KEY'";
+            SELECT kcu.COLUMN_NAME
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+            WHERE tc.TABLE_SCHEMA = @schemaName
+                AND tc.TABLE_NAME = @tableName
+                AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY'";
 
-        command.Parameters.AddWithValue("schemaName", table.Schema);
-        command.Parameters.AddWithValue("tableName", table.Name);
+        command.Parameters.AddWithValue("@schemaName", table.Schema);
+        command.Parameters.AddWithValue("@tableName", table.Name);
 
         using (command)
         {
