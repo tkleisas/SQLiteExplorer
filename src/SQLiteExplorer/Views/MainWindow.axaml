@@ -4,7 +4,6 @@
         xmlns:views="using:SQLiteExplorer.Lib.Views"
         x:Class="SQLiteExplorer.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
         Title="{Binding Title}"
         Width="1200" Height="800">
     <Design.DataContext>
