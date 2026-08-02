@@ -120,6 +120,13 @@ SQLiteExplorer/
 - [x] Consistent button styles (tool/accent/chip/flat), rounded editor chrome
 - [x] AI side panel mirroring the cheatsheet panel idiom
 
+### Phase 9: Reports ✅
+- [x] `ReportDefinition` + JSON `ReportStore` (AppData default; hosts can redirect per-workspace)
+- [x] Report wizard: details → SQL (hand-written or AI-generated) → preview → save
+- [x] Reports manager: list, edit, delete, generate
+- [x] Excel output via ClosedXML (title block, frozen bold header, typed cells, auto-fit)
+- [x] `IsMenuVisible` for hosts that surface commands in their own menus (NVS)
+
 ## Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|

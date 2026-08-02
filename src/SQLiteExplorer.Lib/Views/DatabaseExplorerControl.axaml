@@ -58,7 +58,8 @@
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*">
-        <Menu Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
+        <Menu Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+              IsVisible="{Binding IsMenuVisible}">
             <MenuItem Header="_File">
                 <MenuItem Header="_New">
                     <MenuItem Header="SQLite Database..." Command="{Binding NewSqliteDatabaseCommand}"/>
@@ -80,6 +81,10 @@
             </MenuItem>
             <MenuItem Header="_Query">
                 <MenuItem Header="_New Query Tab" Command="{Binding AddNewQueryTabCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Reports">
+                <MenuItem Header="_Reports..." Command="{Binding OpenReportsCommand}"/>
+                <MenuItem Header="_New Report (Wizard)..." Command="{Binding NewReportCommand}"/>
             </MenuItem>
             <MenuItem Header="_AI">
                 <MenuItem Header="_Ask AI..." Command="{Binding ShowAiAssistantCommand}"/>

@@ -40,6 +40,34 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLlmHostConfigured;
 
+    /// <summary>
+    /// Whether the embedded menu bar is shown. Hosts that integrate the explorer's
+    /// commands into their own menu system (e.g. NVS) set this to false.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isMenuVisible = true;
+
+    private string? _reportStoreDirectory;
+    private ReportStore? _reportStore;
+
+    /// <summary>
+    /// Directory where report definitions are stored. Null (default) means
+    /// %APPDATA%/SQLiteExplorer. Hosts can set a per-workspace directory.
+    /// </summary>
+    public string? ReportStoreDirectory
+    {
+        get => _reportStoreDirectory;
+        set
+        {
+            if (SetProperty(ref _reportStoreDirectory, value))
+            {
+                _reportStore = null;
+            }
+        }
+    }
+
+    private ReportStore GetReportStore() => _reportStore ??= new ReportStore(_reportStoreDirectory);
+
     [ObservableProperty]
     private ObservableCollection<DatabaseTreeNode> _databaseNodes = new();
 
@@ -573,6 +601,64 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectedTab?.InsertSqlAtCaret(AiAssistant.SqlFromResponse);
+    }
+
+    [RelayCommand]
+    private async Task OpenReports()
+    {
+        if (!IsConnected)
+        {
+            StatusMessage = "Connect to a database first";
+            return;
+        }
+
+        var vm = new ReportsViewModel(GetReportStore(), () => _databaseService);
+        vm.NewRequested += async (_, _) =>
+        {
+            await ShowReportWizard(null);
+            vm.Reload();
+        };
+        vm.EditRequested += async (_, report) =>
+        {
+            await ShowReportWizard(report);
+            vm.Reload();
+        };
+
+        var dialog = new Views.ReportsDialog(vm);
+        var window = GetMainWindow();
+        if (window != null)
+        {
+            await dialog.ShowDialog(window);
+        }
+    }
+
+    [RelayCommand]
+    private async Task NewReport()
+    {
+        if (!IsConnected)
+        {
+            StatusMessage = "Connect to a database first";
+            return;
+        }
+
+        await ShowReportWizard(null);
+    }
+
+    private async Task ShowReportWizard(ReportDefinition? existing)
+    {
+        var vm = new ReportWizardViewModel(
+            () => LlmService,
+            () => _schemaDescription,
+            () => _databaseService,
+            GetReportStore(),
+            existing);
+
+        var dialog = new Views.ReportWizardDialog(vm);
+        var window = GetMainWindow();
+        if (window != null)
+        {
+            await dialog.ShowDialog(window);
+        }
     }
 
     [RelayCommand]

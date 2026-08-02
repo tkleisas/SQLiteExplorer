@@ -4,7 +4,7 @@ A cross-platform desktop tool for inspecting and querying **SQLite, PostgreSQL, 
 
 *Powered by AI SLOPTRONIC (TM) technology - because writing SQL tools by hand is so 2019.*
 
-**Version 1.0.0**
+**Version 1.2.0**
 
 ![Screenshot](screenshot.png)
 
@@ -16,6 +16,7 @@ A cross-platform desktop tool for inspecting and querying **SQLite, PostgreSQL, 
 - **SQL Autocomplete** - Keywords, functions, tables, and columns (Ctrl+Space or auto-trigger)
 - **AI Assistant** - Natural-language → SQL, query explanation, optimization tips and result-set analysis via any OpenAI-compatible LLM endpoint
 - **AI Completion** - LLM-powered SQL completion at the caret (Ctrl+Shift+Space), schema-aware
+- **Excel Reports** - Build reports in a wizard (SQL by hand or AI-generated), save the definitions, regenerate Excel (.xlsx) output anytime via ClosedXML
 - **Multiple Results** - Execute multiple statements, each result in its own tab (SSMS-style)
 - **Results Grid** - Virtualized data grid for large datasets
 - **Context Menu** - Right-click tables for SELECT * or DESCRIBE TABLE (dialect-aware quoting)
@@ -139,6 +140,16 @@ Output: `src/SQLiteExplorer/bin/Release/net10.0/<rid>/publish/SQLiteExplorer[.ex
 6. Press **Ctrl+Shift+Space** in the editor for AI completion at the caret
 - *Finally, an AI that reads your schema instead of hallucinating table names*
 
+### Create Reports
+1. **Reports → New Report (Wizard)...** - name the report, write the SQL (or click
+   **✨ Generate with AI** and describe it), run a preview, save
+2. **Reports → Reports...** - manage saved reports: **Generate Excel…** runs the query
+   against the current connection and writes a formatted `.xlsx` (title block, frozen
+   header row, typed cells, auto-fitted columns — powered by ClosedXML)
+3. Report definitions are saved to `%APPDATA%/SQLiteExplorer/reports.json` in the
+   standalone app; hosts can redirect the store (NVS keeps them per-workspace in
+   `<workspace>/.nvs/reports.json`)
+
 ### Right-Click Tables
 - **SELECT \*** - Generate and execute a SELECT statement (schema-qualified, dialect-quoted)
 - **DESCRIBE TABLE** - Show table structure
@@ -186,6 +197,10 @@ View
 
 Query
 └── New Query Tab
+
+Reports
+├── Reports...
+└── New Report (Wizard)...
 
 AI
 ├── Ask AI...
@@ -260,6 +275,13 @@ Setting `LlmService` to anything but the built-in type marks it host-managed: th
 settings button then raises `LlmSettingsRequested` instead of showing the built-in dialog.
 This is how [NVS](https://github.com/tkleisas/nvs) wires the database explorer to its own
 LLM settings.
+
+Two more embedding knobs:
+
+```csharp
+vm.IsMenuVisible = false;              // host renders its own menus instead of the embedded one
+vm.ReportStoreDirectory = workspaceDir; // report definitions live with the host's workspace
+```
 
 ## Testing
 
