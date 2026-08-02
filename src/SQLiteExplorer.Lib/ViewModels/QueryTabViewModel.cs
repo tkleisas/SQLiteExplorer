@@ -12,6 +12,7 @@ using AvaloniaVirtualDataGrid.Controls;
 using AvaloniaVirtualDataGrid.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SQLiteExplorer.Lib.Completion;
 using SQLiteExplorer.Lib.Models;
 using SQLiteExplorer.Lib.Services;
 
@@ -44,9 +45,35 @@ public partial class QueryTabViewModel : ViewModelBase
 
     public event EventHandler<string>? QueryExecuted;
 
+    /// <summary>
+    /// The editor control attached to this tab (set via EditorAdapterBehavior).
+    /// Null when the tab's view has not been created yet.
+    /// </summary>
+    public SqlEditorAdapter? Editor { get; set; }
+
     public QueryTabViewModel(Func<IDatabaseService?> databaseServiceFactory)
     {
         _databaseServiceFactory = databaseServiceFactory;
+    }
+
+    /// <summary>
+    /// Inserts SQL at the editor caret when the editor is attached;
+    /// otherwise appends it to the SQL text.
+    /// </summary>
+    public void InsertSqlAtCaret(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql)) return;
+
+        if (Editor != null)
+        {
+            Editor.InsertAtCaret(sql);
+        }
+        else
+        {
+            SqlText = string.IsNullOrWhiteSpace(SqlText)
+                ? sql
+                : SqlText.TrimEnd() + Environment.NewLine + sql;
+        }
     }
 
     [RelayCommand]
@@ -128,6 +155,12 @@ public partial class ResultSetViewModel : ObservableObject
 {
     private List<string> _columnNames = new();
     private List<Dictionary<string, object?>> _rows = new();
+
+    /// <summary>Column names of the result set (empty for failed statements).</summary>
+    public IReadOnlyList<string> ColumnNames => _columnNames;
+
+    /// <summary>Rows of the result set (empty for failed statements).</summary>
+    public IReadOnlyList<Dictionary<string, object?>> Rows => _rows;
 
     [ObservableProperty]
     private string _title;

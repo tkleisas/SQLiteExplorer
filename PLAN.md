@@ -105,6 +105,21 @@ SQLiteExplorer/
 - [x] xUnit test project (`tests/SQLiteExplorer.Lib.Tests`)
 - [x] GitHub Actions: CI (build + test) and tag-triggered release builds
 
+### Phase 7: LLM Integration ✅
+- [x] `ILlmService` abstraction + built-in OpenAI-compatible service (no new deps)
+- [x] Host injection: embedders (NVS) assign `MainWindowViewModel.LlmService` to reuse
+      the host's LLM setup; `LlmSettingsRequested` routes the settings button to the host
+- [x] AI Assistant panel: natural-language → SQL, Explain, Optimize, Analyze Results
+- [x] AI completion at caret (Ctrl+Shift+Space), schema/dialect-aware prompts
+- [x] AI Settings dialog (endpoint, key, model, temperature, test connection)
+- [x] xUnit tests for prompts, the LLM client and the assistant view model
+
+### Phase 8: UI Polish ✅
+- [x] Toolbar: connection chip, accent Execute, AI toggle, history on the right
+- [x] Status bar: connection dot, db-type badge, proper error coloring
+- [x] Consistent button styles (tool/accent/chip/flat), rounded editor chrome
+- [x] AI side panel mirroring the cheatsheet panel idiom
+
 ## Keyboard Shortcuts
 | Shortcut | Action |
 |----------|--------|
@@ -112,11 +127,11 @@ SQLiteExplorer/
 | Ctrl+N | New Database |
 | Ctrl+T | New Query Tab |
 | Ctrl+Enter | Execute Query |
+| Ctrl+Shift+Space | AI Completion at Caret |
 | F5 | Execute Query |
 
 ## Known Issues
 - File dialogs use deprecated API (should update to StorageProvider)
-- No error highlighting in status bar (errors shown in green)
 
 ## Lessons Learned
 - AvaloniaEdit requires its theme to be included: `<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />`
@@ -124,13 +139,11 @@ SQLiteExplorer/
 - TextEditor needs `DocumentTextBindingBehavior` for MVVM text binding
 
 ## Future Enhancements
-- AvaloniaEdit with SQL syntax highlighting
 - Inline data editing
-- IntelliSense/auto-complete
+- Streaming LLM responses in the AI panel
+- LLM-generated query explanations inline in result tabs
 - Table creation UI
 - Index management
-- Query history
-- Export (CSV, JSON)
 
 ## Technical Decisions
 - **.NET Version**: .NET 10

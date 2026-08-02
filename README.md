@@ -14,6 +14,8 @@ A cross-platform desktop tool for inspecting and querying **SQLite, PostgreSQL, 
 - **Schema-Aware Explorer** - Tree view with icons (🗄️ Database, 📁 Schema, 📋 Table, 👁️ View, 📝 Column). Server databases group objects by schema; SQLite stays flat.
 - **SQL Editor** - Syntax highlighting with AvaloniaEdit
 - **SQL Autocomplete** - Keywords, functions, tables, and columns (Ctrl+Space or auto-trigger)
+- **AI Assistant** - Natural-language → SQL, query explanation, optimization tips and result-set analysis via any OpenAI-compatible LLM endpoint
+- **AI Completion** - LLM-powered SQL completion at the caret (Ctrl+Shift+Space), schema-aware
 - **Multiple Results** - Execute multiple statements, each result in its own tab (SSMS-style)
 - **Results Grid** - Virtualized data grid for large datasets
 - **Context Menu** - Right-click tables for SELECT * or DESCRIBE TABLE (dialect-aware quoting)
@@ -126,6 +128,17 @@ Output: `src/SQLiteExplorer/bin/Release/net10.0/<rid>/publish/SQLiteExplorer[.ex
 - Tables/columns from your database appear contextually
 - *AI SLOPTRONIC (TM) reads your mind... or at least your schema*
 
+### Use the AI Assistant
+1. Open **AI → AI Settings...** (or the ⚙ button in the AI panel) and configure any
+   OpenAI-compatible endpoint (OpenAI, OpenRouter, DeepSeek, Ollama, LM Studio)
+2. Click **✨ AI** in the toolbar to open the AI Assistant panel
+3. **Generate SQL** - type a question in natural language, get dialect-aware SQL that knows
+   your schema; **Insert SQL into editor** drops it at the caret
+4. **Explain / Optimize** - analyzes the query in the current tab
+5. **Analyze Results** - summarizes the selected result set (patterns, outliers)
+6. Press **Ctrl+Shift+Space** in the editor for AI completion at the caret
+- *Finally, an AI that reads your schema instead of hallucinating table names*
+
 ### Right-Click Tables
 - **SELECT \*** - Generate and execute a SELECT statement (schema-qualified, dialect-quoted)
 - **DESCRIBE TABLE** - Show table structure
@@ -148,6 +161,7 @@ Output: `src/SQLiteExplorer/bin/Release/net10.0/<rid>/publish/SQLiteExplorer[.ex
 | Ctrl+T | New Query Tab | ★★★★☆ |
 | Ctrl+Enter | Execute Query | ★★★★★ |
 | Ctrl+Space | Show Autocomplete | ★★★★☆ |
+| Ctrl+Shift+Space | AI Completion at Caret | ★★★★★ |
 | F5 | Execute Query (classic) | ★★★☆☆ |
 
 ## Menu Structure
@@ -173,6 +187,16 @@ View
 Query
 └── New Query Tab
 
+AI
+├── Ask AI...
+├── AI Complete at Cursor (Ctrl+Shift+Space)
+├── ─────────────
+├── Explain Query
+├── Optimize Query
+├── Analyze Results
+├── ─────────────
+└── AI Settings...
+
 Help
 ├── SQLite Cheatsheet
 ├── PostgreSQL Cheatsheet
@@ -197,10 +221,13 @@ SQLiteExplorer/
 │       │                            #   SqliteService, PostgresService,
 │       │                            #   SqlServerService, OracleService,
 │       │                            #   SqlStatementSplitter, DatabaseServiceFactory
-│       ├── ViewModels/              # MVVM view models (MainWindowViewModel, ...)
-│       ├── Views/                   # Avalonia views + connection dialogs
-│       ├── Behaviors/               # XAML behaviors (autocomplete, text binding)
-│       ├── Completion/              # SQL completion provider
+│       │                            # LLM: ILlmService, OpenAiCompatibleLlmService,
+│       │                            #   LlmSettings, LlmPrompts
+│       ├── ViewModels/              # MVVM view models (MainWindowViewModel,
+│       │                            #   QueryTabViewModel, AiAssistantViewModel, ...)
+│       ├── Views/                   # Avalonia views + connection dialogs + LlmSettingsDialog
+│       ├── Behaviors/               # XAML behaviors (autocomplete, text binding, editor adapter)
+│       ├── Completion/              # SQL completion provider, SqlEditorAdapter
 │       └── Converters/              # Value converters
 ├── tests/
 │   └── SQLiteExplorer.Lib.Tests/    # xUnit unit tests
@@ -215,6 +242,24 @@ Each provider implements `IDatabaseService`, which owns its dialect concerns
 (`UsesSchemas`, `QuoteIdentifier`, `GetDescribeSql`) alongside connect/introspect/execute.
 Register it in `DatabaseServiceFactory`, add a `ConnectionInfo` model and a connection
 dialog, and wire up the menu commands.
+
+### Embedding in another app (and reusing its LLM)
+
+The explorer is host-agnostic: `DatabaseExplorerControl` + `MainWindowViewModel` are the
+whole embedding surface. By default the AI features use the built-in OpenAI-compatible
+service configured in the AI Settings dialog. A host application can instead inject its
+own LLM infrastructure so the explorer shares the host's configuration:
+
+```csharp
+var vm = new MainWindowViewModel();
+vm.LlmService = myHostLlmAdapter;             // any SQLiteExplorer.Lib.Services.ILlmService
+vm.LlmSettingsRequested += (_, _) => OpenHostLlmSettings();  // optional: route the ⚙ button
+```
+
+Setting `LlmService` to anything but the built-in type marks it host-managed: the ⚙
+settings button then raises `LlmSettingsRequested` instead of showing the built-in dialog.
+This is how [NVS](https://github.com/tkleisas/nvs) wires the database explorer to its own
+LLM settings.
 
 ## Testing
 

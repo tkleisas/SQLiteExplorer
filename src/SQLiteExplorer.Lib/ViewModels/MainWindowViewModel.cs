@@ -19,25 +19,33 @@ namespace SQLiteExplorer.Lib.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private IDatabaseService? _databaseService;
-    
+    private string _schemaDescription = string.Empty;
+    private ILlmService _llmService;
+
     [ObservableProperty]
     private string _title = "SQLite Explorer";
-    
+
     [ObservableProperty]
     private string _statusMessage = "No database loaded";
-    
+
     [ObservableProperty]
     private bool _isConnected;
-    
+
+    [ObservableProperty]
+    private string _connectionDisplayName = string.Empty;
+
     [ObservableProperty]
     private DatabaseType _currentDatabaseType;
-    
+
+    [ObservableProperty]
+    private bool _isLlmHostConfigured;
+
     [ObservableProperty]
     private ObservableCollection<DatabaseTreeNode> _databaseNodes = new();
-    
+
     [ObservableProperty]
     private ObservableCollection<QueryTabViewModel> _queryTabs = new();
-    
+
     [ObservableProperty]
     private QueryTabViewModel? _selectedTab;
 
@@ -51,10 +59,34 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public SqlCompletionProvider CompletionProvider { get; } = new();
 
+    public AiAssistantViewModel AiAssistant { get; }
+
+    /// <summary>
+    /// The LLM service used for AI completion and analysis. Defaults to the built-in
+    /// OpenAI-compatible service configured via the AI Settings dialog. Hosts embedding
+    /// the explorer can assign their own implementation to reuse the host's LLM setup;
+    /// doing so marks the configuration as host-managed (see <see cref="IsLlmHostConfigured"/>).
+    /// </summary>
+    public ILlmService LlmService
+    {
+        get => _llmService;
+        set
+        {
+            if (SetProperty(ref _llmService, value))
+            {
+                IsLlmHostConfigured = value is not OpenAiCompatibleLlmService;
+            }
+        }
+    }
+
     public static IValueConverter ConnectedConverter { get; } = new FuncValueConverter<bool, string>(b => b ? "Connected" : "Disconnected");
+
+    public static IValueConverter ConnectedBrushConverter { get; } = new FuncValueConverter<bool, Avalonia.Media.IBrush>(b => b ? Avalonia.Media.Brushes.ForestGreen : Avalonia.Media.Brushes.Gray);
 
     public MainWindowViewModel()
     {
+        _llmService = new OpenAiCompatibleLlmService(LlmSettings.Load());
+        AiAssistant = new AiAssistantViewModel(() => LlmService, () => _schemaDescription);
         AddNewQueryTab();
     }
 
@@ -221,6 +253,7 @@ public partial class MainWindowViewModel : ViewModelBase
             CurrentDatabaseType = connectionInfo.DatabaseType;
             IsConnected = _databaseService.IsConnected;
             StatusMessage = $"Connected: {connectionInfo.DisplayName}";
+            ConnectionDisplayName = connectionInfo.DisplayName;
             Title = $"{GetAppTitle()} - {connectionInfo.DisplayName}";
             
             await RefreshDatabaseTree();
@@ -293,6 +326,20 @@ public partial class MainWindowViewModel : ViewModelBase
 
         DatabaseNodes.Add(rootNode);
         CompletionProvider.UpdateSchema(tableNames, tableColumns);
+        _schemaDescription = LlmPrompts.BuildSchemaDescription(
+            GetDialectDisplayName(),
+            info.Tables);
+    }
+
+    private string GetDialectDisplayName()
+    {
+        return CurrentDatabaseType switch
+        {
+            DatabaseType.PostgreSQL => "PostgreSQL",
+            DatabaseType.SqlServer => "SQL Server (T-SQL)",
+            DatabaseType.Oracle => "Oracle (PL/SQL)",
+            _ => "SQLite"
+        };
     }
 
     private static DatabaseTreeNode BuildTableNode(
@@ -399,6 +446,134 @@ public partial class MainWindowViewModel : ViewModelBase
     /// The host application should subscribe to this event and show its own About window.
     /// </summary>
     public event EventHandler? ShowAboutRequested;
+
+    /// <summary>
+    /// Raised when the user opens AI settings while the LLM service is host-managed
+    /// (<see cref="IsLlmHostConfigured"/>). The host should open its own LLM settings UI.
+    /// </summary>
+    public event EventHandler? LlmSettingsRequested;
+
+    [RelayCommand]
+    private void ShowAiAssistant()
+    {
+        AiAssistant.IsVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseAiAssistant()
+    {
+        AiAssistant.IsVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task OpenLlmSettings()
+    {
+        if (IsLlmHostConfigured)
+        {
+            LlmSettingsRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        var dialog = new Views.LlmSettingsDialog();
+
+        var window = GetMainWindow();
+        if (window != null)
+        {
+            await dialog.ShowDialog(window);
+        }
+
+        if (dialog.SettingsSaved)
+        {
+            ReloadLlmService();
+        }
+    }
+
+    /// <summary>Reloads the built-in LLM service from saved settings (no-op when host-managed).</summary>
+    public void ReloadLlmService()
+    {
+        if (!IsLlmHostConfigured)
+        {
+            LlmService = new OpenAiCompatibleLlmService(LlmSettings.Load());
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExplainQuery()
+    {
+        if (SelectedTab == null || string.IsNullOrWhiteSpace(SelectedTab.SqlText)) return;
+
+        AiAssistant.IsVisible = true;
+        await AiAssistant.ExplainAsync(SelectedTab.SqlText);
+    }
+
+    [RelayCommand]
+    private async Task OptimizeQuery()
+    {
+        if (SelectedTab == null || string.IsNullOrWhiteSpace(SelectedTab.SqlText)) return;
+
+        AiAssistant.IsVisible = true;
+        await AiAssistant.OptimizeAsync(SelectedTab.SqlText);
+    }
+
+    [RelayCommand]
+    private async Task AnalyzeResults()
+    {
+        var resultSet = SelectedTab?.SelectedResultSet;
+        if (SelectedTab == null || resultSet == null || resultSet.Rows.Count == 0) return;
+
+        AiAssistant.IsVisible = true;
+        await AiAssistant.AnalyzeAsync(SelectedTab.SqlText, resultSet.ColumnNames, resultSet.Rows);
+    }
+
+    private bool _isAiCompleting;
+
+    [RelayCommand]
+    private async Task AiComplete()
+    {
+        if (SelectedTab == null || _isAiCompleting) return;
+
+        if (!LlmService.IsConfigured)
+        {
+            StatusMessage = "LLM is not configured - open AI Settings";
+            AiAssistant.IsVisible = true;
+            return;
+        }
+
+        var beforeCaret = SelectedTab.Editor?.GetTextBeforeCaret() ?? SelectedTab.SqlText;
+        if (string.IsNullOrWhiteSpace(beforeCaret)) return;
+
+        _isAiCompleting = true;
+        try
+        {
+            var (system, user) = LlmPrompts.BuildCompletion(_schemaDescription, beforeCaret);
+            var completion = await LlmService.ChatAsync(system, user);
+            if (!string.IsNullOrWhiteSpace(completion))
+            {
+                SelectedTab.InsertSqlAtCaret(completion);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"AI completion failed: {ex.Message}";
+        }
+        finally
+        {
+            _isAiCompleting = false;
+        }
+    }
+
+    [RelayCommand]
+    private void InsertAiSql()
+    {
+        if (string.IsNullOrWhiteSpace(AiAssistant.SqlFromResponse)) return;
+
+        if (SelectedTab == null)
+        {
+            AddNewQueryTab();
+        }
+
+        SelectedTab?.InsertSqlAtCaret(AiAssistant.SqlFromResponse);
+    }
 
     [RelayCommand]
     private void ShowSqliteCheatsheet()

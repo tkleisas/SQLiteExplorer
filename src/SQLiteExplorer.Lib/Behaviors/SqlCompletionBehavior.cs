@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Input;
 using AvaloniaEdit;
@@ -13,6 +14,12 @@ public class SqlCompletionBehavior
 {
     public static readonly AttachedProperty<SqlCompletionProvider?> ProviderProperty =
         AvaloniaProperty.RegisterAttached<SqlCompletionBehavior, TextEditor, SqlCompletionProvider?>("Provider");
+
+    /// <summary>
+    /// Command invoked on Ctrl+Shift+Space for AI-powered completion at the caret.
+    /// </summary>
+    public static readonly AttachedProperty<ICommand?> AiCompleteCommandProperty =
+        AvaloniaProperty.RegisterAttached<SqlCompletionBehavior, TextEditor, ICommand?>("AiCompleteCommand");
 
     private static readonly AttachedProperty<SqlCompletionInstance?> InstanceProperty =
         AvaloniaProperty.RegisterAttached<SqlCompletionBehavior, TextEditor, SqlCompletionInstance?>("Instance");
@@ -30,6 +37,16 @@ public class SqlCompletionBehavior
     public static SqlCompletionProvider? GetProvider(AvaloniaObject element)
     {
         return element.GetValue(ProviderProperty);
+    }
+
+    public static void SetAiCompleteCommand(AvaloniaObject element, ICommand? value)
+    {
+        element.SetValue(AiCompleteCommandProperty, value);
+    }
+
+    public static ICommand? GetAiCompleteCommand(AvaloniaObject element)
+    {
+        return element.GetValue(AiCompleteCommandProperty);
     }
 
     private static void OnProviderChanged(TextEditor textEditor, AvaloniaPropertyChangedEventArgs args)
@@ -66,6 +83,17 @@ public class SqlCompletionBehavior
 
         private void OnKeyDown(object? sender, KeyEventArgs e)
         {
+            if (e.Key == Key.Space && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+            {
+                e.Handled = true;
+                var command = GetAiCompleteCommand(_textEditor);
+                if (command?.CanExecute(null) == true)
+                {
+                    command.Execute(null);
+                }
+                return;
+            }
+
             if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
             {
                 e.Handled = true;
