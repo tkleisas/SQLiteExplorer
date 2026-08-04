@@ -106,7 +106,7 @@
             </MenuItem>
         </Menu>
         
-        <Grid Grid.Row="1" ColumnDefinitions="250,6,*,6,Auto,6,Auto">
+        <Grid Grid.Row="1" ColumnDefinitions="250,6,*,6,380">
             <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Text="Database Explorer" Classes="panelHeader" Margin="10,8"/>
@@ -151,6 +151,7 @@
                             </StackPanel>
                         </Button>
                         <Button Classes="accent" Command="{Binding SelectedTab.ExecuteQueryCommand}" 
+                                AutomationProperties.AutomationId="ExecuteQueryButton"
                                 IsEnabled="{Binding !SelectedTab.IsLoading}"
                                 ToolTip.Tip="Execute Query (Ctrl+Enter)">
                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -203,6 +204,7 @@
                             <Grid RowDefinitions="*,Auto,*">
                                 <Border Grid.Row="0" Margin="8,8,8,0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                                     <AvaloniaEdit:TextEditor ShowLineNumbers="True"
+                                                             AutomationProperties.AutomationId="QueryEditor"
                                                              FontFamily="Consolas, Courier New"
                                                              FontSize="14"
                                                              SyntaxHighlighting="SQL"
@@ -272,10 +274,16 @@
             
             <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch"
                           IsVisible="{Binding Cheatsheet.IsVisible}"/>
+            <GridSplitter Grid.Column="3" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                          IsVisible="{Binding AiAssistant.IsVisible}"/>
             
-            <Border Grid.Column="4" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
-                    IsVisible="{Binding Cheatsheet.IsVisible}"
-                    Width="400">
+            <Grid Grid.Column="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="{Binding Cheatsheet.IsVisible, Converter={x:Static converters:BoolToGridLengthConverter.Instance}}" />
+                    <RowDefinition Height="{Binding AiAssistant.IsVisible, Converter={x:Static converters:BoolToGridLengthConverter.Instance}}" />
+                </Grid.RowDefinitions>
+            <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
+                    IsVisible="{Binding Cheatsheet.IsVisible}">
                 <Grid RowDefinitions="Auto,*">
                     <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
                         <Grid ColumnDefinitions="*,Auto">
@@ -299,12 +307,8 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="5" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                          IsVisible="{Binding AiAssistant.IsVisible}"/>
-
-            <Border Grid.Column="6" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
-                    IsVisible="{Binding AiAssistant.IsVisible}"
-                    Width="360">
+            <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}"
+                    IsVisible="{Binding AiAssistant.IsVisible}">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
                     <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
                         <Grid ColumnDefinitions="*,Auto,Auto">
@@ -326,7 +330,8 @@
                     </Border>
 
                     <Border Grid.Row="2" Padding="8">
-                        <TextBox Text="{Binding AiAssistant.Question}"
+                        <TextBox AutomationProperties.AutomationId="AiQuestionInput"
+                                 Text="{Binding AiAssistant.Question}"
                                  PlaceholderText="Ask about your data, e.g. &quot;top 10 products by price&quot;"
                                  AcceptsReturn="True"
                                  MinHeight="56"
@@ -336,6 +341,7 @@
                     <Border Grid.Row="3" Padding="8,0,8,8">
                         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
                             <Button Grid.Row="0" Grid.Column="0" Classes="chip" Content="Generate SQL"
+                                    AutomationProperties.AutomationId="AiGenerateSqlButton"
                                     Command="{Binding AiAssistant.AskCommand}" Margin="0,0,4,4"
                                     ToolTip.Tip="Generate SQL from your question"/>
                             <Button Grid.Row="0" Grid.Column="1" Classes="chip" Content="Explain Query"
@@ -373,6 +379,7 @@
                     <Border Grid.Row="5" Padding="8">
                         <Grid ColumnDefinitions="*,*">
                             <Button Grid.Column="0" Classes="chip" Content="Insert SQL into editor"
+                                    AutomationProperties.AutomationId="AiInsertSqlButton"
                                     Command="{Binding InsertAiSqlCommand}" Margin="0,0,4,0"
                                     ToolTip.Tip="Insert the SQL from the response at the caret"/>
                             <Button Grid.Column="1" Classes="chip" Content="Clear"
@@ -381,6 +388,7 @@
                     </Border>
                 </Grid>
             </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>
