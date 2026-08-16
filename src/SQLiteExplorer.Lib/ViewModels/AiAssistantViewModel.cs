@@ -17,6 +17,7 @@ public partial class AiAssistantViewModel : ViewModelBase
 {
     private readonly Func<ILlmService> _llmServiceFactory;
     private readonly Func<string> _schemaDescription;
+    private CancellationTokenSource? _cts;
 
     [ObservableProperty]
     private string _question = string.Empty;
@@ -58,12 +59,20 @@ public partial class AiAssistantViewModel : ViewModelBase
     [RelayCommand]
     private void Clear()
     {
+        _cts?.Cancel();
         Question = string.Empty;
         Response = string.Empty;
         ErrorMessage = string.Empty;
         HasError = false;
         OnPropertyChanged(nameof(SqlFromResponse));
         OnPropertyChanged(nameof(HasSqlInResponse));
+    }
+
+    /// <summary>Cancels an in-flight request, keeping the partial response visible.</summary>
+    [RelayCommand]
+    private void Stop()
+    {
+        _cts?.Cancel();
     }
 
     public Task ExplainAsync(string sql)
@@ -84,7 +93,7 @@ public partial class AiAssistantViewModel : ViewModelBase
         return RunAsync(system, user);
     }
 
-    private async Task RunAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
+    private async Task RunAsync(string systemPrompt, string userPrompt)
     {
         var llm = _llmServiceFactory();
         if (!llm.IsConfigured)
@@ -94,15 +103,39 @@ public partial class AiAssistantViewModel : ViewModelBase
             return;
         }
 
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+
         IsBusy = true;
         HasError = false;
         ErrorMessage = string.Empty;
+        Response = string.Empty;
 
         try
         {
-            Response = await llm.ChatAsync(systemPrompt, userPrompt, ct);
+            // Stream tokens into the response as they arrive (services that don't
+            // support streaming deliver the whole reply in one callback).
+            var sb = new System.Text.StringBuilder();
+            var reply = await llm.ChatStreamingAsync(
+                systemPrompt,
+                userPrompt,
+                onToken: token =>
+                {
+                    sb.Append(token);
+                    Response = sb.ToString();
+                },
+                _cts.Token);
+
+            Response = reply;
             OnPropertyChanged(nameof(SqlFromResponse));
             OnPropertyChanged(nameof(HasSqlInResponse));
+        }
+        catch (OperationCanceledException)
+        {
+            Response = string.IsNullOrWhiteSpace(Response)
+                ? "(cancelled)"
+                : Response + System.Environment.NewLine + System.Environment.NewLine + "(cancelled)";
         }
         catch (Exception ex)
         {
@@ -112,6 +145,8 @@ public partial class AiAssistantViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+            _cts?.Dispose();
+            _cts = null;
         }
     }
 }

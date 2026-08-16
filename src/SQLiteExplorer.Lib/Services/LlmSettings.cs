@@ -16,6 +16,8 @@ public class LlmSettings
     public string ApiKey { get; set; } = string.Empty;
     public string Model { get; set; } = "gpt-4o-mini";
     public double Temperature { get; set; } = 0.2;
+    public bool ThinkingMode { get; set; }
+    public string ThinkingEffort { get; set; } = "medium";
 
     private static string SettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

@@ -27,7 +27,7 @@ public partial class LlmSettingsDialog : Window
     {
         Title = "AI Settings";
         Width = 460;
-        Height = 500;
+        Height = 620;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
@@ -42,6 +42,26 @@ public partial class LlmSettingsDialog : Window
         var modelBox = new TextBox { Text = _settings.Model, PlaceholderText = "Model (e.g. gpt-4o-mini, deepseek-chat, codellama)", Margin = new(0, 0, 0, 8) };
         var temperatureBox = new NumericUpDown { Value = (decimal)_settings.Temperature, Minimum = 0, Maximum = 2, Increment = 0.1m, Margin = new(0, 0, 0, 12) };
 
+        var thinkingCheck = new CheckBox
+        {
+            Content = "Thinking mode (reasoning models)",
+            IsChecked = _settings.ThinkingMode,
+            Margin = new(0, 0, 0, 8)
+        };
+        var effortCombo = new ComboBox
+        {
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Width = 160,
+            Margin = new(0, 0, 0, 12),
+            IsEnabled = _settings.ThinkingMode
+        };
+        effortCombo.Items.Add("low");
+        effortCombo.Items.Add("medium");
+        effortCombo.Items.Add("high");
+        var effortIndex = Array.IndexOf(new[] { "low", "medium", "high" }, _settings.ThinkingEffort);
+        effortCombo.SelectedIndex = effortIndex >= 0 ? effortIndex : 1; // default "medium"
+        thinkingCheck.IsCheckedChanged += (s, e) => effortCombo.IsEnabled = thinkingCheck.IsChecked == true;
+
         var testResultLabel = new TextBlock { Text = string.Empty, TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 0, 12) };
 
         var testButton = new Button { Content = "Test connection", HorizontalAlignment = HorizontalAlignment.Left, Padding = new(16, 6), Margin = new(0, 0, 0, 8) };
@@ -52,7 +72,7 @@ public partial class LlmSettingsDialog : Window
             testResultLabel.Foreground = Brushes.Gray;
             try
             {
-                var service = new OpenAiCompatibleLlmService(BuildSettings(enabledCheck, endpointBox, apiKeyBox, modelBox, temperatureBox));
+                var service = new OpenAiCompatibleLlmService(BuildSettings(enabledCheck, endpointBox, apiKeyBox, modelBox, temperatureBox, thinkingCheck, effortCombo));
                 var reply = await service.ChatAsync(
                     "You are a connectivity probe. Reply with exactly: ok",
                     "ping");
@@ -75,7 +95,7 @@ public partial class LlmSettingsDialog : Window
         var saveButton = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Right, Padding = new(24, 8) };
         saveButton.Click += (s, e) =>
         {
-            var updated = BuildSettings(enabledCheck, endpointBox, apiKeyBox, modelBox, temperatureBox);
+            var updated = BuildSettings(enabledCheck, endpointBox, apiKeyBox, modelBox, temperatureBox, thinkingCheck, effortCombo);
             updated.Save();
             SettingsSaved = true;
             Close();
@@ -110,6 +130,9 @@ public partial class LlmSettingsDialog : Window
                         modelBox,
                         new TextBlock { Text = "Temperature", FontWeight = FontWeight.SemiBold, Margin = new(0, 0, 0, 4) },
                         temperatureBox,
+                        thinkingCheck,
+                        new TextBlock { Text = "Thinking effort", FontWeight = FontWeight.SemiBold, Margin = new(0, 0, 0, 4) },
+                        effortCombo,
                         testButton,
                         testResultLabel,
                         new StackPanel
@@ -129,7 +152,9 @@ public partial class LlmSettingsDialog : Window
         TextBox endpointBox,
         TextBox apiKeyBox,
         TextBox modelBox,
-        NumericUpDown temperatureBox)
+        NumericUpDown temperatureBox,
+        CheckBox thinkingCheck,
+        ComboBox effortCombo)
     {
         return new LlmSettings
         {
@@ -137,7 +162,9 @@ public partial class LlmSettingsDialog : Window
             Endpoint = endpointBox.Text?.Trim() ?? string.Empty,
             ApiKey = apiKeyBox.Text?.Trim() ?? string.Empty,
             Model = modelBox.Text?.Trim() ?? string.Empty,
-            Temperature = (double)(temperatureBox.Value ?? 0.2m)
+            Temperature = (double)(temperatureBox.Value ?? 0.2m),
+            ThinkingMode = thinkingCheck.IsChecked == true,
+            ThinkingEffort = effortCombo.SelectedItem?.ToString() ?? "medium"
         };
     }
 }

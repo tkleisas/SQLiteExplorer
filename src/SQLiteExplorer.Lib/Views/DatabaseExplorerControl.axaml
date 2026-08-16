@@ -106,16 +106,33 @@
             </MenuItem>
         </Menu>
         
-        <Grid Grid.Row="1" ColumnDefinitions="250,6,*,6,380">
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition MinWidth="260" Width="380" MaxWidth="640"/>
+            </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="{DynamicResource SystemControlBackgroundChromeLowBrush}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,1,0">
                 <Grid RowDefinitions="Auto,*">
-                    <TextBlock Grid.Row="0" Text="Database Explorer" Classes="panelHeader" Margin="10,8"/>
+                    <Grid Grid.Row="0" Margin="10,8,6,8" ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Database Explorer" Classes="panelHeader" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="flat" Command="{Binding RefreshDatabaseTreeCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                Width="24" Height="24" ToolTip.Tip="Refresh schema (F5)">
+                            <TextBlock Text="⟳" FontSize="15" Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                        </Button>
+                    </Grid>
                     <TreeView Grid.Row="1" Name="DatabaseTreeView" ItemsSource="{Binding DatabaseNodes}" Margin="5,0">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate ItemsSource="{Binding Children}">
                                 <TextBlock Text="{Binding DisplayName}">
                                     <TextBlock.ContextMenu>
                                         <ContextMenu>
+                                            <MenuItem Header="⟳ Refresh schema"
+                                                      Command="{Binding $parent[views:DatabaseExplorerControl].((vm:MainWindowViewModel)DataContext).RefreshDatabaseTreeCommand}"/>
+                                            <Separator/>
                                             <MenuItem Header="SELECT *" 
                                                       Command="{Binding $parent[views:DatabaseExplorerControl].((vm:MainWindowViewModel)DataContext).SelectTableCommand}"
                                                       CommandParameter="{Binding}"
@@ -134,17 +151,17 @@
             </Border>
             <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
             <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="8">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="8">
+                    <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                                CornerRadius="12" Padding="10,4" VerticalAlignment="Center"
+                                CornerRadius="12" Padding="10,4" VerticalAlignment="Center" Margin="0,2,8,2"
                                 IsVisible="{Binding IsConnected}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="🗄" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding ConnectionDisplayName}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
-                        <Button Classes="tool" Command="{Binding AddNewQueryTabCommand}" ToolTip.Tip="New Query (Ctrl+T)">
+                        <Button Classes="tool" Command="{Binding AddNewQueryTabCommand}" ToolTip.Tip="New Query (Ctrl+T)" Margin="0,2,4,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="➕" VerticalAlignment="Center"/>
                                 <TextBlock Text="New Query" VerticalAlignment="Center"/>
@@ -153,25 +170,27 @@
                         <Button Classes="accent" Command="{Binding SelectedTab.ExecuteQueryCommand}" 
                                 AutomationProperties.AutomationId="ExecuteQueryButton"
                                 IsEnabled="{Binding !SelectedTab.IsLoading}"
-                                ToolTip.Tip="Execute Query (Ctrl+Enter)">
+                                ToolTip.Tip="Execute Query (Ctrl+Enter)" Margin="0,2,4,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="▶" VerticalAlignment="Center"/>
                                 <TextBlock Text="Execute" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                        <Button Classes="tool" Command="{Binding ShowAiAssistantCommand}" ToolTip.Tip="AI Assistant">
+                        <Button Classes="tool" Command="{Binding ShowAiAssistantCommand}" ToolTip.Tip="AI Assistant" Margin="0,2,4,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="✨" VerticalAlignment="Center"/>
                                 <TextBlock Text="AI" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                    </StackPanel>
+                    </WrapPanel>
                     <ComboBox Grid.Column="1" ItemsSource="{Binding QueryHistory}"
                               SelectedItem="{Binding SelectedHistoryItem}"
                               PlaceholderText="History"
-                              Width="140"
+                              Width="120"
+                              MinWidth="90"
                               HorizontalAlignment="Right"
                               VerticalAlignment="Center"
+                              Margin="8,0,0,0"
                               ToolTip.Tip="Query History"/>
                 </Grid>
                 
@@ -311,13 +330,18 @@
                     IsVisible="{Binding AiAssistant.IsVisible}">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
                     <Border Grid.Row="0" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" Padding="8,4">
-                        <Grid ColumnDefinitions="*,Auto,Auto">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                             <TextBlock Grid.Column="0" Text="✨ AI Assistant" Classes="panelHeader"/>
-                            <Button Grid.Column="1" Classes="flat" Command="{Binding OpenLlmSettingsCommand}"
+                            <Button Grid.Column="1" Classes="flat" Command="{Binding AiAssistant.StopCommand}"
+                                    Width="24" Height="20" ToolTip.Tip="Stop generating"
+                                    IsVisible="{Binding AiAssistant.IsBusy}">
+                                <TextBlock Text="⏹" FontSize="13" Foreground="#E06060"/>
+                            </Button>
+                            <Button Grid.Column="2" Classes="flat" Command="{Binding OpenLlmSettingsCommand}"
                                     Width="24" Height="20" ToolTip.Tip="AI Settings">
                                 <TextBlock Text="⚙" FontSize="13" Foreground="Gray"/>
                             </Button>
-                            <Button Grid.Column="2" Classes="flat" Command="{Binding CloseAiAssistantCommand}"
+                            <Button Grid.Column="3" Classes="flat" Command="{Binding CloseAiAssistantCommand}"
                                     Width="20" Height="20">
                                 <TextBlock Text="×" FontSize="14" Foreground="Gray"/>
                             </Button>
@@ -339,21 +363,21 @@
                     </Border>
 
                     <Border Grid.Row="3" Padding="8,0,8,8">
-                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                            <Button Grid.Row="0" Grid.Column="0" Classes="chip" Content="Generate SQL"
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Classes="chip" Content="Generate SQL" Margin="0,0,4,4"
                                     AutomationProperties.AutomationId="AiGenerateSqlButton"
-                                    Command="{Binding AiAssistant.AskCommand}" Margin="0,0,4,4"
+                                    Command="{Binding AiAssistant.AskCommand}"
                                     ToolTip.Tip="Generate SQL from your question"/>
-                            <Button Grid.Row="0" Grid.Column="1" Classes="chip" Content="Explain Query"
-                                    Command="{Binding ExplainQueryCommand}" Margin="4,0,0,4"
+                            <Button Classes="chip" Content="Explain Query" Margin="0,0,4,4"
+                                    Command="{Binding ExplainQueryCommand}" IsEnabled="{Binding !AiAssistant.IsBusy}"
                                     ToolTip.Tip="Explain the current query"/>
-                            <Button Grid.Row="1" Grid.Column="0" Classes="chip" Content="Optimize Query"
-                                    Command="{Binding OptimizeQueryCommand}" Margin="0,4,4,0"
+                            <Button Classes="chip" Content="Optimize Query" Margin="0,0,4,4"
+                                    Command="{Binding OptimizeQueryCommand}" IsEnabled="{Binding !AiAssistant.IsBusy}"
                                     ToolTip.Tip="Suggest optimizations for the current query"/>
-                            <Button Grid.Row="1" Grid.Column="1" Classes="chip" Content="Analyze Results"
-                                    Command="{Binding AnalyzeResultsCommand}" Margin="4,4,0,0"
+                            <Button Classes="chip" Content="Analyze Results" Margin="0,0,4,4"
+                                    Command="{Binding AnalyzeResultsCommand}" IsEnabled="{Binding !AiAssistant.IsBusy}"
                                     ToolTip.Tip="Summarize the selected result set"/>
-                        </Grid>
+                        </WrapPanel>
                     </Border>
 
                     <Grid Grid.Row="4" RowDefinitions="Auto,Auto,*" Margin="8,0">
@@ -381,6 +405,7 @@
                             <Button Grid.Column="0" Classes="chip" Content="Insert SQL into editor"
                                     AutomationProperties.AutomationId="AiInsertSqlButton"
                                     Command="{Binding InsertAiSqlCommand}" Margin="0,0,4,0"
+                                    IsEnabled="{Binding AiAssistant.HasSqlInResponse}"
                                     ToolTip.Tip="Insert the SQL from the response at the caret"/>
                             <Button Grid.Column="1" Classes="chip" Content="Clear"
                                     Command="{Binding AiAssistant.ClearCommand}" Margin="4,0,0,0"/>

@@ -78,6 +78,85 @@ public class OpenAiCompatibleLlmServiceTests
     }
 
     [Fact]
+    public async Task ChatAsync_ThinkingModeOn_SendsReasoningEffort()
+    {
+        var handler = new FakeHandler();
+        var settings = EnabledSettings();
+        settings.ThinkingMode = true;
+        settings.ThinkingEffort = "high";
+        var service = new OpenAiCompatibleLlmService(settings, () => handler);
+
+        await service.ChatAsync("s", "u");
+
+        using var doc = JsonDocument.Parse(handler.LastRequestBody!);
+        Assert.Equal("high", doc.RootElement.GetProperty("reasoning_effort").GetString());
+    }
+
+    [Fact]
+    public async Task ChatAsync_ThinkingModeOff_OmitsReasoningEffort()
+    {
+        var handler = new FakeHandler();
+        var settings = EnabledSettings();
+        settings.ThinkingMode = false;
+        settings.ThinkingEffort = "high";
+        var service = new OpenAiCompatibleLlmService(settings, () => handler);
+
+        await service.ChatAsync("s", "u");
+
+        using var doc = JsonDocument.Parse(handler.LastRequestBody!);
+        Assert.False(doc.RootElement.TryGetProperty("reasoning_effort", out _));
+    }
+
+    [Fact]
+    public async Task ChatStreamingAsync_SendsStreamTrue_AndDeliversTokens()
+    {
+        var handler = new FakeHandler
+        {
+            ResponseBody = """
+                data: {"choices":[{"delta":{"content":"SELECT "}}]}
+
+                data: {"choices":[{"delta":{"content":"1;"}}]}
+
+                data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """
+        };
+        var service = new OpenAiCompatibleLlmService(EnabledSettings(), () => handler);
+
+        var tokens = new List<string>();
+        var reply = await service.ChatStreamingAsync("s", "u", tokens.Add);
+
+        Assert.Equal("SELECT 1;", reply);
+        Assert.Equal(new[] { "SELECT ", "1;" }, tokens);
+
+        using var doc = JsonDocument.Parse(handler.LastRequestBody!);
+        Assert.True(doc.RootElement.GetProperty("stream").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ChatStreamingAsync_IgnoresMalformedChunks_AndStopsAtDone()
+    {
+        var handler = new FakeHandler
+        {
+            ResponseBody = """
+                data: not-json
+
+                data: {"choices":[{"delta":{"content":"ok"}}]}
+
+                data: [DONE]
+
+                """
+        };
+        var service = new OpenAiCompatibleLlmService(EnabledSettings(), () => handler);
+
+        var reply = await service.ChatStreamingAsync("s", "u", null);
+
+        Assert.Equal("ok", reply);
+    }
+
+    [Fact]
     public async Task ChatAsync_NoApiKey_OmitsAuthorizationHeader()
     {
         var handler = new FakeHandler();

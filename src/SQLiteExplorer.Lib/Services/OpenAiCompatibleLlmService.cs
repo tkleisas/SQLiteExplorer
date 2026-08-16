@@ -36,24 +36,68 @@ public class OpenAiCompatibleLlmService : ILlmService
 
     public async Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
     {
-        if (!IsConfigured)
-        {
-            throw new InvalidOperationException("LLM service is not configured. Open AI Settings to set an endpoint and model.");
-        }
+        using var request = BuildRequest(systemPrompt, userPrompt, stream: false);
 
-        var requestBody = new
+        try
         {
-            model = _settings.Model,
-            messages = new[]
+            using var client = CreateClient();
+            using var response = await client.SendAsync(request, ct).ConfigureAwait(false);
+            await ThrowIfFailedAsync(response, ct).ConfigureAwait(false);
+
+            var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            return ExtractContent(responseJson);
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("LLM request timed out.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> ChatStreamingAsync(
+        string systemPrompt,
+        string userPrompt,
+        Action<string>? onToken,
+        CancellationToken ct = default)
+    {
+        using var request = BuildRequest(systemPrompt, userPrompt, stream: true);
+
+        try
+        {
+            using var client = CreateClient();
+            using var response = await client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                ct).ConfigureAwait(false);
+            await ThrowIfFailedAsync(response, ct).ConfigureAwait(false);
+
+            return await ReadSseContentAsync(response, onToken, ct).ConfigureAwait(false);
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("LLM request timed out.");
+        }
+    }
+
+    private HttpRequestMessage BuildRequest(string systemPrompt, string userPrompt, bool stream)
+    {
+        var requestBody = new Dictionary<string, object?>
+        {
+            ["model"] = _settings.Model,
+            ["messages"] = new[]
             {
                 new { role = "system", content = systemPrompt },
                 new { role = "user", content = userPrompt }
             },
-            temperature = _settings.Temperature,
-            stream = false
+            ["temperature"] = _settings.Temperature,
+            ["stream"] = stream
         };
+        if (_settings.ThinkingMode)
+        {
+            requestBody["reasoning_effort"] = _settings.ThinkingEffort;
+        }
 
-        using var request = new HttpRequestMessage(
+        var request = new HttpRequestMessage(
             HttpMethod.Post,
             BuildCompletionsUrl(_settings.Endpoint))
         {
@@ -68,31 +112,90 @@ public class OpenAiCompatibleLlmService : ILlmService
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
         }
 
-        try
-        {
-            using var client = CreateClient();
-            using var response = await client.SendAsync(request, ct).ConfigureAwait(false);
+        return request;
+    }
 
-            if (!response.IsSuccessStatusCode)
+    private static async Task ThrowIfFailedAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var detail = (await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false)).Trim();
+        if (detail.Length > 500)
+        {
+            detail = detail[..500] + "…";
+        }
+        throw new InvalidOperationException(
+            string.IsNullOrEmpty(detail)
+                ? $"LLM request failed: {(int)response.StatusCode} {response.ReasonPhrase}"
+                : $"LLM request failed: {(int)response.StatusCode} {response.ReasonPhrase} — {detail}");
+    }
+
+    /// <summary>
+    /// Reads an OpenAI-compatible SSE stream, invoking <paramref name="onToken"/>
+    /// for each content delta and returning the accumulated reply.
+    /// </summary>
+    internal static async Task<string> ReadSseContentAsync(
+        HttpResponseMessage response,
+        Action<string>? onToken,
+        CancellationToken ct)
+    {
+        var full = new StringBuilder();
+
+        using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        while (!ct.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
+            if (line is null)
             {
-                var detail = (await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false)).Trim();
-                if (detail.Length > 500)
-                {
-                    detail = detail[..500] + "…";
-                }
-                throw new InvalidOperationException(
-                    string.IsNullOrEmpty(detail)
-                        ? $"LLM request failed: {(int)response.StatusCode} {response.ReasonPhrase}"
-                        : $"LLM request failed: {(int)response.StatusCode} {response.ReasonPhrase} — {detail}");
+                break;
             }
 
-            var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            return ExtractContent(responseJson);
+            if (!line.StartsWith("data:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var data = line.AsSpan(5).Trim();
+            if (data.SequenceEqual("[DONE]"))
+            {
+                break;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(data.ToString());
+                var choices = doc.RootElement.GetProperty("choices");
+                if (choices.GetArrayLength() == 0)
+                {
+                    continue;
+                }
+
+                var delta = choices[0].TryGetProperty("delta", out var d)
+                    ? d
+                    : choices[0].GetProperty("message");
+
+                if (delta.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String)
+                {
+                    var token = content.GetString() ?? string.Empty;
+                    if (token.Length > 0)
+                    {
+                        full.Append(token);
+                        onToken?.Invoke(token);
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Ignore malformed chunks; keep reading.
+            }
         }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
-        {
-            throw new InvalidOperationException("LLM request timed out.");
-        }
+
+        return full.ToString();
     }
 
     internal static string ExtractContent(string responseJson)

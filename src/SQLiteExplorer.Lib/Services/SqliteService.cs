@@ -48,6 +48,9 @@ public class SqliteService : IDatabaseService
     {
         if (_connection != null)
         {
+            // Microsoft.Data.Sqlite pools connections by default; a pooled handle
+            // keeps the database file locked after dispose, so evict it explicitly.
+            SqliteConnection.ClearPool(_connection);
             _connection.Close();
             _connection.Dispose();
             _connection = null;

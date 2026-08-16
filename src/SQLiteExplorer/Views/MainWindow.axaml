@@ -9,5 +9,8 @@
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
+    <Window.KeyBindings>
+        <KeyBinding Gesture="F5" Command="{Binding RefreshDatabaseTreeCommand}"/>
+    </Window.KeyBindings>
     <views:DatabaseExplorerControl DataContext="{Binding}"/>
 </Window>

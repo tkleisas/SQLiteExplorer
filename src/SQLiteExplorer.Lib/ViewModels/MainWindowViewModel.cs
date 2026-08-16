@@ -126,6 +126,16 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Releases the current database connection. Hosts should call this when the
+    /// explorer is closed so the connection (and file handle) is freed.
+    /// </summary>
+    public void Dispose()
+    {
+        _databaseService?.Dispose();
+        _databaseService = null;
+    }
+
     public void AddToHistory(string sql)
     {
         if (string.IsNullOrWhiteSpace(sql)) return;
@@ -308,6 +318,11 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_databaseService == null || !_databaseService.IsConnected) return;
 
+        // Remember which nodes were expanded so a schema refresh (button, context
+        // menu, F5) does not collapse the whole tree.
+        var expandedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectExpandedKeys(DatabaseNodes, "", expandedKeys);
+
         DatabaseNodes.Clear();
         
         var info = await _databaseService.GetDatabaseInfoAsync();
@@ -353,10 +368,40 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         DatabaseNodes.Add(rootNode);
+        ApplyExpandedKeys(DatabaseNodes, expandedKeys);
         CompletionProvider.UpdateSchema(tableNames, tableColumns);
         _schemaDescription = LlmPrompts.BuildSchemaDescription(
             GetDialectDisplayName(),
             info.Tables);
+    }
+
+    private static void CollectExpandedKeys(
+        IEnumerable<DatabaseTreeNode> nodes,
+        string parentKey,
+        HashSet<string> expandedKeys)
+    {
+        foreach (var node in nodes)
+        {
+            var key = parentKey.Length == 0 ? node.Name : $"{parentKey}/{node.Name}";
+            if (node.IsExpanded)
+            {
+                expandedKeys.Add(key);
+            }
+            CollectExpandedKeys(node.Children, key, expandedKeys);
+        }
+    }
+
+    private static void ApplyExpandedKeys(
+        IEnumerable<DatabaseTreeNode> nodes,
+        HashSet<string> expandedKeys,
+        string parentKey = "")
+    {
+        foreach (var node in nodes)
+        {
+            var key = parentKey.Length == 0 ? node.Name : $"{parentKey}/{node.Name}";
+            node.IsExpanded = expandedKeys.Contains(key);
+            ApplyExpandedKeys(node.Children, expandedKeys, key);
+        }
     }
 
     private string GetDialectDisplayName()

@@ -18,6 +18,33 @@ public class AiAssistantViewModelTests
             LastUserPrompt = userPrompt;
             return Task.FromResult(Reply);
         }
+
+        public bool StreamingCalled;
+        public List<string>? StreamTokens;
+        public bool HangUntilCancelled;
+
+        public async Task<string> ChatStreamingAsync(
+            string systemPrompt,
+            string userPrompt,
+            Action<string>? onToken,
+            CancellationToken ct = default)
+        {
+            LastSystemPrompt = systemPrompt;
+            LastUserPrompt = userPrompt;
+            StreamingCalled = true;
+            if (StreamTokens is not null)
+            {
+                foreach (var token in StreamTokens)
+                {
+                    onToken?.Invoke(token);
+                }
+            }
+            if (HangUntilCancelled)
+            {
+                await Task.Delay(Timeout.Infinite, ct);
+            }
+            return Reply;
+        }
     }
 
     private static (AiAssistantViewModel Vm, FakeLlmService Llm) Create(string schema = "schema text")
@@ -74,6 +101,41 @@ public class AiAssistantViewModelTests
         await vm.AnalyzeAsync("SELECT Name FROM T", new List<string> { "Name" }, rows);
 
         Assert.Contains("Widget", llm.LastUserPrompt);
+    }
+
+    [Fact]
+    public async Task Ask_UsesStreaming_WhenServiceSupportsIt()
+    {
+        var (vm, llm) = Create();
+        llm.Reply = "SELECT 1;";
+        llm.StreamTokens = new List<string> { "SELECT ", "1;" };
+        vm.Question = "top 10 products";
+
+        await vm.AskCommand.ExecuteAsync(null);
+
+        Assert.True(llm.StreamingCalled);
+        Assert.Equal("SELECT 1;", vm.Response);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Stop_CancelsInFlightRequest_AndMarksResponse()
+    {
+        var (vm, llm) = Create();
+        llm.HangUntilCancelled = true;
+        llm.StreamTokens = new List<string> { "partial " };
+        vm.Question = "q";
+
+        var task = vm.AskCommand.ExecuteAsync(null);
+        // Let the fake start delivering tokens and block on the cancellation token.
+        await Task.Delay(50);
+        vm.StopCommand.Execute(null);
+        await task;
+
+        Assert.Contains("partial ", vm.Response);
+        Assert.Contains("(cancelled)", vm.Response);
+        Assert.False(vm.IsBusy);
+        Assert.False(vm.HasError);
     }
 
     [Fact]

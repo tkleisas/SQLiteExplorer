@@ -19,4 +19,21 @@ public interface ILlmService
     /// Sends a single system + user prompt pair and returns the assistant's reply.
     /// </summary>
     Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sends a single system + user prompt pair, delivering content tokens to
+    /// <paramref name="onToken"/> as they arrive and returning the full reply.
+    /// Implementations that support streaming should override this; the default
+    /// implementation falls back to <see cref="ChatAsync"/> (single delivery).
+    /// </summary>
+    async Task<string> ChatStreamingAsync(
+        string systemPrompt,
+        string userPrompt,
+        Action<string>? onToken,
+        CancellationToken ct = default)
+    {
+        var reply = await ChatAsync(systemPrompt, userPrompt, ct).ConfigureAwait(false);
+        onToken?.Invoke(reply);
+        return reply;
+    }
 }
