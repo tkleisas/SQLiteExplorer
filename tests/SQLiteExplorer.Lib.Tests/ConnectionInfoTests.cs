@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using SQLiteExplorer.Lib.Models;
 
 namespace SQLiteExplorer.Lib.Tests;
@@ -66,6 +67,78 @@ public class ConnectionInfoTests
 
         Assert.Contains("Integrated Security=True", cs);
         Assert.DoesNotContain("User ID", cs);
+    }
+
+    [Fact]
+    public void SqlServer_Defaults_EncryptAndTrustServerCertificate()
+    {
+        var info = new SqlServerConnectionInfo { Server = "localhost", Database = "shop" };
+
+        var cs = info.ConnectionString;
+
+        Assert.Contains("Encrypt=True", cs);
+        Assert.Contains("Trust Server Certificate=True", cs);
+    }
+
+    [Fact]
+    public void SqlServer_EncryptModes_AreEmitted()
+    {
+        var plaintext = new SqlServerConnectionInfo
+        {
+            Server = "localhost",
+            Database = "shop",
+            Encrypt = SqlConnectionEncryptOption.Optional,
+            TrustServerCertificate = false
+        };
+        Assert.Contains("Encrypt=False", plaintext.ConnectionString);
+        Assert.Contains("Trust Server Certificate=False", plaintext.ConnectionString);
+
+        var strict = new SqlServerConnectionInfo
+        {
+            Server = "localhost",
+            Database = "shop",
+            Encrypt = SqlConnectionEncryptOption.Strict
+        };
+        Assert.Contains("Encrypt=Strict", strict.ConnectionString);
+        // Strict always validates the certificate and does not honour the keyword.
+        Assert.DoesNotContain("Trust Server Certificate", strict.ConnectionString);
+    }
+
+    [Fact]
+    public void SqlServer_TimeoutApplicationNameAndMars_AreEmitted()
+    {
+        var info = new SqlServerConnectionInfo
+        {
+            Server = "localhost",
+            Database = "shop",
+            ConnectionTimeout = 5,
+            ApplicationName = "NVS Database Explorer",
+            MultipleActiveResultSets = true
+        };
+
+        var cs = info.ConnectionString;
+
+        Assert.Contains("Connect Timeout=5", cs);
+        // Values containing spaces are quoted by the builder.
+        Assert.Contains("Application Name=\"NVS Database Explorer\"", cs);
+        Assert.Contains("Multiple Active Result Sets=True", cs);
+    }
+
+    [Fact]
+    public void SqlServer_AdditionalOptions_OverrideBuiltIns()
+    {
+        var info = new SqlServerConnectionInfo
+        {
+            Server = "localhost",
+            Database = "shop",
+            AdditionalOptions = "Packet Size=8192; Connect Timeout=3"
+        };
+
+        var cs = info.ConnectionString;
+
+        Assert.Contains("Packet Size=8192", cs);
+        Assert.Contains("Connect Timeout=3", cs);
+        Assert.DoesNotContain("Connect Timeout=15", cs);
     }
 
     [Fact]
